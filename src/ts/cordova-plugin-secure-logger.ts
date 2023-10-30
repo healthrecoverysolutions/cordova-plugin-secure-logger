@@ -28,7 +28,7 @@ function cordovaExecPromise<T>(plugin: string, method: string, args?: any[]): Pr
 const SECURE_LOGGER_PLUGIN = 'SecureLoggerPlugin';
 
 // mirrors levels found in android.util.Log
-export const enum LogLevel {
+export const enum SecureLogLevel {
     VERBOSE = 2,
     DEBUG = 3,
     INFO = 4,
@@ -37,9 +37,9 @@ export const enum LogLevel {
     FATAL = 7
 }
 
-export interface HRSLogEvent {
+export interface SecureLogEvent {
     timestamp: number; // EPOCH-based timestamp, e.g. Date.now()
-    level: LogLevel;
+    level: SecureLogLevel;
     tag: string;
     message: string;
 }
@@ -55,7 +55,7 @@ export class SecureLoggerCordovaInterface {
      * newlines between events when writing formatted content to
      * the log cache.
      */
-    public capture(events: HRSLogEvent[]): Promise<void> {
+    public capture(events: SecureLogEvent[]): Promise<void> {
         return invokePlugin('capture', events);
     }
 

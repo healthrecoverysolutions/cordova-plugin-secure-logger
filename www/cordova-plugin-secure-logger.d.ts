@@ -1,4 +1,4 @@
-export declare const enum LogLevel {
+export declare const enum SecureLogLevel {
     VERBOSE = 2,
     DEBUG = 3,
     INFO = 4,
@@ -6,9 +6,9 @@ export declare const enum LogLevel {
     ERROR = 6,
     FATAL = 7
 }
-export interface HRSLogEvent {
+export interface SecureLogEvent {
     timestamp: number;
-    level: LogLevel;
+    level: SecureLogLevel;
     tag: string;
     message: string;
 }
@@ -18,7 +18,7 @@ export declare class SecureLoggerCordovaInterface {
      * newlines between events when writing formatted content to
      * the log cache.
      */
-    capture(events: HRSLogEvent[]): Promise<void>;
+    capture(events: SecureLogEvent[]): Promise<void>;
     /**
      * Writes the given text directly to the log cache
      * without any preprocessing.
