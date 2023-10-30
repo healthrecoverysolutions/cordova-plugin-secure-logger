@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="cordova-plugin-secure-logger" version="0.2.2">
+
+   <name>Secure Logger</name>
+   <description>Log capture plugin that intercepts both webview and native events, and stores them securely on disk</description>
+
+   <js-module name="SecureLoggerPlugin" src="www/cordova-plugin-secure-logger.js">
+      <clobbers target="cordova.plugins.SecureLoggerPlugin" />
+   </js-module>
+
+   <platform name="android">
+      <config-file parent="/*" target="config.xml">
+         <preference name="GradlePluginKotlinEnabled" value="true" />
+         <feature name="SecureLoggerPlugin">
+            <param name="android-package" value="com.hrs.secure.logger.SecureLoggerPlugin" />
+         </feature>
+      </config-file>
+      <framework src="src/android/plugin.gradle" custom="true" type="gradleReference" />
+      <source-file src="src/android/com/hrs/secure/logger/SecureLoggerUtility.kt" target-dir="java/com/hrs/secure/logger" />
+      <source-file src="src/android/com/hrs/secure/logger/RotatingFileStream.kt" target-dir="java/com/hrs/secure/logger" />
+      <source-file src="src/android/com/hrs/secure/logger/TimberFileProxy.kt" target-dir="java/com/hrs/secure/logger" />
+      <source-file src="src/android/com/hrs/secure/logger/SecureLoggerPlugin.kt" target-dir="java/com/hrs/secure/logger" />
+   </platform>
+
+   <platform name="ios">
+      <config-file parent="/*" target="config.xml">
+          <feature name="SecureLoggerPlugin">
+             <param name="ios-package" value="SecureLoggerPlugin" />
+         </feature>
+      </config-file>
+      
+      <source-file src="src/ios/SecureLoggerFileStream.swift" />
+      <source-file src="src/ios/SecureLoggerPluginUtility.swift" />
+      <source-file src="src/ios/SecureLoggerLumberjackFileProxy.swift" />
+      <source-file src="src/ios/SecureLoggerPlugin.swift" />
+
+      <podspec>
+         <config>
+            <source url="https://cdn.cocoapods.org/" />
+         </config>
+         <pods use-frameworks="true">
+            <pod name="CocoaLumberjack/Swift" spec="~> 3.8" />
+            <pod name="IDZSwiftCommonCrypto" spec="~> 0.13" />
+            <pod name="SwiftyJSON" spec="~> 4.0" />
+         </pods>
+      </podspec>
+    </platform>
+</plugin>
