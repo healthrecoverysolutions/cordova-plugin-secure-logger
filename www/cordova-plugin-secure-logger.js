@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NativeLogger = exports.NativeLoggerDefinition = void 0;
+exports.SecureLogger = exports.SecureLoggerCordovaInterface = void 0;
 function noop() {
     return;
 }
@@ -27,29 +27,29 @@ function invokePlugin(method) {
     }
     return cordovaExecPromise(SECURE_LOGGER_PLUGIN, method, args);
 }
-var NativeLoggerDefinition = /** @class */ (function () {
-    function NativeLoggerDefinition() {
+var SecureLoggerCordovaInterface = /** @class */ (function () {
+    function SecureLoggerCordovaInterface() {
     }
     /**
      * Uses native-level formatting, and automatically inserts
      * newlines between events when writing formatted content to
      * the log cache.
      */
-    NativeLoggerDefinition.prototype.capture = function (events) {
+    SecureLoggerCordovaInterface.prototype.capture = function (events) {
         return invokePlugin('capture', events);
     };
     /**
      * Writes the given text directly to the log cache
      * without any preprocessing.
      */
-    NativeLoggerDefinition.prototype.captureText = function (text) {
+    SecureLoggerCordovaInterface.prototype.captureText = function (text) {
         return invokePlugin('captureText', text);
     };
     /**
      * Deletes all logging cache files.
      * Cannot be undone, use with caution.
      */
-    NativeLoggerDefinition.prototype.clearCache = function () {
+    SecureLoggerCordovaInterface.prototype.clearCache = function () {
         return invokePlugin('clearCache');
     };
     /**
@@ -57,10 +57,10 @@ var NativeLoggerDefinition = /** @class */ (function () {
      * contains all current log files stitched back
      * together chronologically.
      */
-    NativeLoggerDefinition.prototype.getCacheBlob = function () {
+    SecureLoggerCordovaInterface.prototype.getCacheBlob = function () {
         return invokePlugin('getCacheBlob');
     };
-    return NativeLoggerDefinition;
+    return SecureLoggerCordovaInterface;
 }());
-exports.NativeLoggerDefinition = NativeLoggerDefinition;
-exports.NativeLogger = new NativeLoggerDefinition();
+exports.SecureLoggerCordovaInterface = SecureLoggerCordovaInterface;
+exports.SecureLogger = new SecureLoggerCordovaInterface();

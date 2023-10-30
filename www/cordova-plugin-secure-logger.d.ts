@@ -12,7 +12,7 @@ export interface HRSLogEvent {
     tag: string;
     message: string;
 }
-export declare class NativeLoggerDefinition {
+export declare class SecureLoggerCordovaInterface {
     /**
      * Uses native-level formatting, and automatically inserts
      * newlines between events when writing formatted content to
@@ -36,4 +36,4 @@ export declare class NativeLoggerDefinition {
      */
     getCacheBlob(): Promise<ArrayBuffer>;
 }
-export declare const NativeLogger: NativeLoggerDefinition;
+export declare const SecureLogger: SecureLoggerCordovaInterface;

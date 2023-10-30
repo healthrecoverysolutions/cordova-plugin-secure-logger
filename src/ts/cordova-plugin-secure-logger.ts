@@ -48,7 +48,7 @@ function invokePlugin<T>(method: string, ...args: any[]): Promise<T> {
     return cordovaExecPromise<T>(SECURE_LOGGER_PLUGIN, method, args);
 }
 
-export class NativeLoggerDefinition {
+export class SecureLoggerCordovaInterface {
 
     /**
      * Uses native-level formatting, and automatically inserts
@@ -85,4 +85,4 @@ export class NativeLoggerDefinition {
     }
 }
 
-export const NativeLogger = new NativeLoggerDefinition();
+export const SecureLogger = new SecureLoggerCordovaInterface();
