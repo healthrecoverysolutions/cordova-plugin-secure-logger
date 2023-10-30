@@ -23,13 +23,13 @@ best thing is to capture logs in a secure sandbox - which is the aim of this plu
 NPM:
 
 ```bash
-npm i -P -E git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#0.2.2
+npm i -P -E git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#0.2.4
 ```
 
 Cordova:
 
 ```bash
-cordova plugin add git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#0.2.2
+cordova plugin add git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#0.2.4
 ```
 
 ## Usage
@@ -41,13 +41,13 @@ You can produce logs for this plugin on both the webview and native side like so
 - TypeScript / JavaScript:
 
 ```typescript
-import { SecureLogger, LogLevel } from 'cordova-plugin-secure-logger';
+import { SecureLogger, SecureLogLevel } from 'cordova-plugin-secure-logger';
 
 function log(tag: string, message: string): Promise<void> {
     return SecureLogger.capture([
         {
             timestamp: Date.now(),
-            level: LogLevel.DEBUG,
+            level: SecureLogLevel.DEBUG,
             tag,
             message
         }
