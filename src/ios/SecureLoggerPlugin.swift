@@ -1,7 +1,6 @@
 import Cordova
 import Foundation
 import CocoaLumberjack
-import SwiftyJSON
 
 @objc(SecureLoggerPlugin)
 public class SecureLoggerPlugin : CDVPlugin {
@@ -25,15 +24,19 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(capture:)
     func capture(command: CDVInvokedUrlCommand) {
       DispatchQueue.main.async {
-          self.captureLogEvents(fromCommand: command)
-          self.sendOk(command.callbackId)
+          if let eventList = command.arguments[0] as? [NSDictionary] {
+              self.captureLogEvents(eventList)
+              self.sendOk(command.callbackId)
+          } else {
+              self.sendError(command.callbackId, "input must be an array of events")
+          }
       }
     }
     
     @objc(captureText:)
     func captureText(command: CDVInvokedUrlCommand) {
       DispatchQueue.main.async {
-          if let text = JSON(command.arguments[0]).string {
+          if let text = command.arguments[0] as? String {
               do {
                   try self.fileStream.append(text)
                   self.sendOk(command.callbackId)
@@ -78,14 +81,13 @@ public class SecureLoggerPlugin : CDVPlugin {
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
     }
 
-    private func captureLogEvents(fromCommand: CDVInvokedUrlCommand) {
-        for (_, logEvent) in JSON(fromCommand.arguments[0]) {
-            if let logLine = logEvent.asSerializedWebEvent() {
-                do {
-                    try fileStream.appendLine(logLine)
-                } catch {
-                    print("Failed to capture webview event in log file!")
-                }
+    private func captureLogEvents(_ eventList: [NSDictionary]) {
+        for logEvent in eventList {
+            do {
+                let logLine = logEvent.asSerializedWebEvent()
+                try fileStream.appendLine(logLine)
+            } catch {
+                print("Failed to capture webview event in log file!")
             }
         }
     }

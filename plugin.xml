@@ -41,7 +41,6 @@
          <pods use-frameworks="true">
             <pod name="CocoaLumberjack/Swift" spec="~> 3.8" />
             <pod name="IDZSwiftCommonCrypto" spec="~> 0.13" />
-            <pod name="SwiftyJSON" spec="~> 4.0" />
          </pods>
       </podspec>
     </platform>

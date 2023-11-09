@@ -1,6 +1,5 @@
 import Cordova
 import CocoaLumberjack
-import SwiftyJSON
 
 enum LogLevel : Int {
     case VERBOSE = 2
@@ -100,26 +99,16 @@ extension DDLogMessage {
     }
 }
 
-extension JSON {
-    
-    func asSerializedWebEvent() -> String? {
+extension NSDictionary {
+
+    func asSerializedWebEvent() -> String {
         
-        let timestamp = self["timestamp"].int ?? Date.nowMilliseconds
-        let level = self["level"].int ?? LogLevel.DEBUG.rawValue
-        let tag = self["tag"].string
-        let message = self["message"].string
+        let timestamp = self["timestamp"] as? Int ?? Date.nowMilliseconds
+        let level = self["level"] as? Int ?? LogLevel.DEBUG.rawValue
+        let tag = self["tag"] as? String ?? "NO_TAG"
+        let message = self["message"] as? String ?? "<MISSING_MESSAGE>"
         
-        var result = "\(Date.from(epoch: timestamp).toISOString()) [\(level.toLogLevelString())]"
-        
-        if tag != nil {
-            result += " [webview-\(tag!)]"
-        }
-        
-        if message != nil {
-            result += " \(message!)"
-        }
-        
-        return result
+        return "\(Date.from(epoch: timestamp).toISOString()) [\(level.toLogLevelString())] [webview-\(tag)] \(message)"
     }
 }
 
