@@ -30,9 +30,9 @@
       </config-file>
       
       <header-file src="src/ios/SecureLoggerPlugin-Bridging-Header.h" type="BridgingHeader" />
-      <source-file src="src/ios/SecureLoggerFileStream.swift" />
-      <source-file src="src/ios/SecureLoggerPluginUtility.swift" />
-      <source-file src="src/ios/SecureLoggerLumberjackFileProxy.swift" />
+      <source-file src="src/ios/SecureLoggerPlugin+FileStream.swift" />
+      <source-file src="src/ios/SecureLoggerPlugin+Utility.swift" />
+      <source-file src="src/ios/SecureLoggerPlugin+LumberjackFileProxy.swift" />
       <source-file src="src/ios/SecureLoggerPlugin.swift" />
 
       <podspec>
