@@ -20,6 +20,7 @@ private const val PRIORITY_WARN = "WARN"
 private const val PRIORITY_ERROR = "ERROR"
 private const val PRIORITY_ASSERT = "FATAL"
 const val NO_TAG = "NO_TAG"
+const val MISSING_MESSAGE = "<MISSING_MESSAGE>"
 
 private val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
 private val timezoneUtc = TimeZone.getTimeZone("UTC")
@@ -61,7 +62,7 @@ fun serializeWebEventFromJSON(obj: JSONObject): String {
     var timestamp = obj.optLong("timestamp", -1)
     val level = obj.optInt("level", Log.DEBUG)
     val tag = obj.optString("tag", NO_TAG)
-    val message = obj.optString("message", "")
+    val message = obj.optString("message", MISSING_MESSAGE)
 
     if (timestamp < 0)
         timestamp = currentTimeMillis()
