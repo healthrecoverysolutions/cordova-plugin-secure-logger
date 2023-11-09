@@ -1,5 +1,3 @@
-import Cordova
-import Foundation
 import CocoaLumberjack
 
 @objc(SecureLoggerPlugin)

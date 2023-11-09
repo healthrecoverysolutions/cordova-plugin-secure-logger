@@ -1,4 +1,3 @@
-import Cordova
 import CocoaLumberjack
 
 enum LogLevel : Int {

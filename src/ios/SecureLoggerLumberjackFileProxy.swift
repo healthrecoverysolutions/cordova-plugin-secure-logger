@@ -1,5 +1,3 @@
-import Cordova
-import Foundation
 import CocoaLumberjack
 
 // Forwards native logs captured by Lumberjack into this plugin's file stream
