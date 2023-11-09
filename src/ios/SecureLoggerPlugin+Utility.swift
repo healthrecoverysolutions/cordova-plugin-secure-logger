@@ -10,41 +10,7 @@ enum LogLevel : Int {
 }
 
 class LogEventUtility {
-
     static let iso6801Formatter = DateFormatter.iSO8601DateWithMillisec
-    
-    private static let LEVEL_VERBOSE = "TRACE"
-    private static let LEVEL_DEBUG = "DEBUG"
-    private static let LEVEL_INFO = "INFO"
-    private static let LEVEL_WARN = "WARN"
-    private static let LEVEL_ERROR = "ERROR"
-    private static let LEVEL_FATAL = "FATAL"
-    private static let NO_TAG = "NO_TAG"
-    private static let NO_MESSAGE = "NO_MESSAGE"
-    
-    static func convertLogLevel(_ level: DDLogLevel) -> LogLevel {
-        switch level {
-        case .all:      return .VERBOSE
-        case .verbose:  return .VERBOSE
-        case .debug:    return .DEBUG
-        case .info:     return .INFO
-        case .warning:  return .WARN
-        case .error:    return .ERROR
-        default:        return .VERBOSE
-        }
-    }
-    
-    static func serializeLogLevel(_ level: Int) -> String {
-        switch level {
-        case LogLevel.VERBOSE.rawValue:  return LEVEL_VERBOSE
-        case LogLevel.DEBUG.rawValue:    return LEVEL_DEBUG
-        case LogLevel.INFO.rawValue:     return LEVEL_INFO
-        case LogLevel.WARN.rawValue:     return LEVEL_WARN
-        case LogLevel.ERROR.rawValue:    return LEVEL_ERROR
-        case LogLevel.FATAL.rawValue:    return LEVEL_FATAL
-        default:                            return LEVEL_VERBOSE
-        }
-    }
 }
 
 extension DateFormatter {
@@ -74,15 +40,43 @@ extension Date {
 
 extension Int {
     
-    func toLogLevelString() -> String {
-        return LogEventUtility.serializeLogLevel(self)
+    func toLogLevel() -> LogLevel {
+        if let level = LogLevel(rawValue: self) {
+            return level
+        }
+        if self > LogLevel.FATAL.rawValue {
+            return .FATAL
+        }
+        return .VERBOSE
+    }
+}
+
+extension LogLevel {
+
+    func toString() -> String {
+        switch self {
+        case .VERBOSE:  return "TRACE"
+        case .DEBUG:    return "DEBUG"
+        case .INFO:     return "INFO"
+        case .WARN:     return "WARN"
+        case .ERROR:    return "ERROR"
+        case .FATAL:    return "FATAL"
+        }
     }
 }
 
 extension DDLogLevel {
-    
-    func convertToPluginLevel() -> Int {
-        return LogEventUtility.convertLogLevel(self).rawValue
+
+    func toPluginLevel() -> LogLevel {
+        switch self {
+        case .all:      return .VERBOSE
+        case .verbose:  return .VERBOSE
+        case .debug:    return .DEBUG
+        case .info:     return .INFO
+        case .warning:  return .WARN
+        case .error:    return .ERROR
+        default:        return .VERBOSE
+        }
     }
 }
 
@@ -91,7 +85,7 @@ extension DDLogMessage {
     func asSerializedNativeEvent() -> String? {
         
         let timestamp = self.timestamp.toISOString()
-        let level = self.level.convertToPluginLevel().toLogLevelString()
+        let level = self.level.toPluginLevel().toString()
         let tag = "\(self.fileName):\(self.function ?? "NO_FUNC"):\(self.line)"
         
         return "\(timestamp) [\(level)] [\(tag)] \(message)"
@@ -106,8 +100,10 @@ extension NSDictionary {
         let level = self["level"] as? Int ?? LogLevel.DEBUG.rawValue
         let tag = self["tag"] as? String ?? "NO_TAG"
         let message = self["message"] as? String ?? "<MISSING_MESSAGE>"
+        let timestampString = Date.from(epoch: timestamp).toISOString()
+        let levelString = level.toLogLevel().toString()
         
-        return "\(Date.from(epoch: timestamp).toISOString()) [\(level.toLogLevelString())] [webview-\(tag)] \(message)"
+        return "\(timestampString) [\(levelString)] [webview-\(tag)] \(message)"
     }
 }
 
