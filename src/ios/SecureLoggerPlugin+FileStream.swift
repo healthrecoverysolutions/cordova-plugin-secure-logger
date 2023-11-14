@@ -46,7 +46,7 @@ public class SecureLoggerFileStream {
     func append(_ text: String) throws {
         if !destroyed && !text.isEmpty {
             let stream = try loadActiveStream()
-            stream.writeText(text)
+            stream?.writeText(text)
         }
     }
     
@@ -138,7 +138,7 @@ public class SecureLoggerFileStream {
         }
     }
 
-    private func loadActiveStream() throws -> OutputStream {
+    private func loadActiveStream() throws -> OutputStream? {
         if activeStream != nil
             && activeFilePath != nil
             && activeFilePath!.fileOrDirectoryExists()
@@ -151,7 +151,7 @@ public class SecureLoggerFileStream {
         return try createNewStream()
     }
 
-    private func createNewStream() throws -> OutputStream {
+    private func createNewStream() throws -> OutputStream? {
         closeActiveStream()
 
         let nextFileName = SecureLoggerFileStream.generateArchiveFileName()
@@ -165,7 +165,7 @@ public class SecureLoggerFileStream {
 
         activeStream = try openWriteStream(activeFilePath!)
 
-        return activeStream!
+        return activeStream
     }
 
     private func normalizeFileCache() {
