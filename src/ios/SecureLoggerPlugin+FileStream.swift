@@ -45,8 +45,9 @@ public class SecureLoggerFileStream {
 
     func append(_ text: String) throws {
         if !destroyed && !text.isEmpty {
-            let stream = try loadActiveStream()
-            stream?.writeText(text)
+            if let stream = try loadActiveStream() {
+                stream.writeText(text)
+            }
         }
     }
     
