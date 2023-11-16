@@ -129,14 +129,12 @@ extension NSDictionary {
     }
 }
 
-extension InputStream {
-    
-    static let DEFAULT_BUFFER_SIZE: Int = 8192
+extension InputStreamLike {
 
     @discardableResult
-    func pipeTo(_ output: OutputStream) -> Int {
+    func pipeTo(_ output: OutputStreamLike) -> Int {
         
-        let bufferSize = InputStream.DEFAULT_BUFFER_SIZE
+        let bufferSize = 8192
         var buffer = [UInt8](repeating: 0, count: bufferSize)
         var transferred: Int = 0
         var read: Int = 1
@@ -153,7 +151,7 @@ extension InputStream {
     }
 }
 
-extension OutputStream {
+extension OutputStreamLike {
     
     @discardableResult
     func writeText(_ text: String) -> Int {

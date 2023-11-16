@@ -13,7 +13,7 @@ public class SecureLoggerFileStream {
     private let outputDirectory: URL
     private var destroyed = false
     private var activeFilePath: URL?
-    private var activeStream: OutputStream?
+    private var activeStream: OutputStreamLike?
     
     init(_ outputDirectory: URL) {
         self.outputDirectory = outputDirectory
@@ -78,7 +78,7 @@ public class SecureLoggerFileStream {
         var bytesWritten: Int = 0
 
         files.sort(by: SecureLoggerFileStream.fileNameComparator)
-        var openedReadStream: InputStream? = nil
+        var openedReadStream: InputStreamLike? = nil
 
         for file in files {
             do {
@@ -108,13 +108,13 @@ public class SecureLoggerFileStream {
         return comparisonResult == ComparisonResult.orderedAscending
     }
     
-    private func openReadStream(_ filePath: URL) throws -> InputStream {
+    private func openReadStream(_ filePath: URL) throws -> InputStreamLike {
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
         return try encryptedFile.openInputStream()
     }
 
-    private func openWriteStream(_ filePath: URL) throws -> OutputStream {
+    private func openWriteStream(_ filePath: URL) throws -> OutputStreamLike {
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
         return try encryptedFile.openOutputStream()
@@ -127,7 +127,7 @@ public class SecureLoggerFileStream {
         }
     }
 
-    private func loadActiveStream() throws -> OutputStream? {
+    private func loadActiveStream() throws -> OutputStreamLike? {
         if activeStream != nil
             && activeFilePath != nil
             && activeFilePath!.fileOrDirectoryExists()
@@ -140,7 +140,7 @@ public class SecureLoggerFileStream {
         return try createNewStream()
     }
 
-    private func createNewStream() throws -> OutputStream? {
+    private func createNewStream() throws -> OutputStreamLike? {
         closeActiveStream()
 
         let nextFileName = SecureLoggerFileStream.generateArchiveFileName()

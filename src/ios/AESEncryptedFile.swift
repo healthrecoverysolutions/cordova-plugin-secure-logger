@@ -4,6 +4,33 @@ enum EncryptedStreamState {
     case initial, opened, closed
 }
 
+public protocol StreamLike {
+    func open() -> Void
+    func close() -> Void
+}
+
+public protocol InputStreamLike : StreamLike {
+    var hasBytesAvailable: Bool { get }
+    @discardableResult
+    func read(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int
+}
+
+public protocol OutputStreamLike : StreamLike {
+    @discardableResult
+    func write(_ buffer: UnsafePointer<UInt8>, maxLength len: Int) -> Int
+}
+
+extension Stream : StreamLike {
+}
+
+// Workaround to avoid errors from inheriting the actual class
+extension InputStream : InputStreamLike {
+}
+
+// Workaround to avoid errors from inheriting the actual class
+extension OutputStream : OutputStreamLike {
+}
+
 public class AESEncryptedFile {
     private static let defaultSalt = "nevergonnagiveyouup"
     
@@ -23,7 +50,7 @@ public class AESEncryptedFile {
         ).calculate()
     }
     
-    public func openInputStream() throws -> InputStream {
+    public func openInputStream() throws -> InputStreamLike {
         let fileHandle = FileHandle(forReadingAtPath: filePath.path)!
         let ivData = fileHandle.readData(ofLength: AES.blockSize)
         let iv = Array(ivData)
@@ -32,7 +59,7 @@ public class AESEncryptedFile {
         
         fileHandle.closeFile()
         
-        guard let stream = EncryptedInputStream(filePath, cryptor) else {
+        guard let stream = try? EncryptedInputStream(filePath, cryptor) else {
             throw AES.Error.invalidData
         }
         
@@ -45,12 +72,12 @@ public class AESEncryptedFile {
         return stream
     }
     
-    public func openOutputStream() throws -> OutputStream {
+    public func openOutputStream() throws -> OutputStreamLike {
         let iv = AES.randomIV(AES.blockSize)
         let blockMode = CBC(iv: iv)
         let cryptor = try AES(key: self.key, blockMode: blockMode, padding: self.padding).makeEncryptor()
         
-        guard let stream = EncryptedOutputStream(filePath, cryptor) else {
+        guard let stream = try? EncryptedOutputStream(filePath, cryptor) else {
             throw AES.Error.invalidData
         }
         
@@ -62,18 +89,22 @@ public class AESEncryptedFile {
         return stream
     }
     
-    class EncryptedInputStream : InputStream {
+    public class EncryptedInputStream : InputStreamLike {
         private let filePath: URL
         private var cryptor: Updatable
-        private var _hasCipherUpdateFailure: Bool
-        private var _state: EncryptedStreamState
+        private var _stream: InputStream
+        private var _hasCipherUpdateFailure: Bool = false
+        private var _state: EncryptedStreamState = .initial
         
-        init?(_ filePath: URL, _ cryptor: Updatable) {
+        init(_ filePath: URL, _ cryptor: Updatable) throws {
             self.filePath = filePath
             self.cryptor = cryptor
-            self._hasCipherUpdateFailure = false
-            self._state = .initial
-            super.init(url: filePath)
+            
+            if let stream = InputStream(url: filePath) {
+                self._stream = stream
+            } else {
+                throw AES.Error.invalidData
+            }
         }
         
         private var hasCipherUpdateFailure: Bool {
@@ -84,41 +115,45 @@ public class AESEncryptedFile {
             return _state == .closed
         }
         
+        public var hasBytesAvailable: Bool {
+            return _stream.hasBytesAvailable
+        }
+        
         @discardableResult
         public func readRaw(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int {
             if _state == .opened {
-                return super.read(buffer, maxLength: len)
+                return _stream.read(buffer, maxLength: len)
             } else {
                 return 0
             }
         }
         
-        public override func open() {
+        public func open() {
             if _state != .initial {
                 return
             }
             
-            super.open()
+            _stream.open()
             _state = .opened
         }
         
-        public override func close() {
+        public func close() {
             if closed {
                 return
             }
             
-            super.close()
+            _stream.close()
             _state = .closed
         }
         
         @discardableResult
-        public override func read(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int {
+        public func read(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int {
             if closed || hasCipherUpdateFailure {
                 return 0
             }
             
             var ciphertextBuffer = [UInt8](repeating: 0, count: len)
-            super.read(&ciphertextBuffer, maxLength: len)
+            _stream.read(&ciphertextBuffer, maxLength: len)
             
             if let plaintext = try? cryptor.update(withBytes: ciphertextBuffer) {
                 buffer.update(from: plaintext, count: plaintext.count)
@@ -131,18 +166,22 @@ public class AESEncryptedFile {
         }
     }
     
-    class EncryptedOutputStream : OutputStream {
+    public class EncryptedOutputStream : OutputStreamLike {
         private let filePath: URL
         private var cryptor: Updatable
-        private var _hasCipherUpdateFailure: Bool
-        private var _state: EncryptedStreamState
+        private var _stream: OutputStream
+        private var _hasCipherUpdateFailure: Bool = false
+        private var _state: EncryptedStreamState = .initial
         
-        init?(_ filePath: URL, _ cryptor: Updatable) {
+        init(_ filePath: URL, _ cryptor: Updatable) throws {
             self.filePath = filePath
             self.cryptor = cryptor
-            self._hasCipherUpdateFailure = false
-            self._state = .initial
-            super.init(url: filePath, append: false)
+            
+            if let stream = OutputStream(url: filePath, append: false) {
+                self._stream = stream
+            } else {
+                throw AES.Error.invalidData
+            }
         }
         
         private var hasCipherUpdateFailure: Bool {
@@ -156,41 +195,41 @@ public class AESEncryptedFile {
         @discardableResult
         public func writeRaw(_ buffer: UnsafePointer<UInt8>, maxLength len: Int) -> Int {
             if _state == .opened {
-                return super.write(buffer, maxLength: len)
+                return _stream.write(buffer, maxLength: len)
             } else {
                 return 0
             }
         }
         
-        public override func open() {
+        public func open() {
             if _state != .initial {
                 return
             }
             
-            super.open()
+            _stream.open()
             _state = .opened
         }
         
-        public override func close() {
+        public func close() {
             if closed {
                 return
             }
             
             if !hasCipherUpdateFailure {
                 if let ciphertext = try? cryptor.finish() {
-                    super.write(ciphertext, maxLength: ciphertext.count)
+                    _stream.write(ciphertext, maxLength: ciphertext.count)
                 } else {
                     print("EncryptedOutputStream ERROR - failed to encrypt final block")
                     self._hasCipherUpdateFailure = true
                 }
             }
             
-            super.close()
+            _stream.close()
             _state = .closed
         }
         
         @discardableResult
-        public override func write(_ buffer: UnsafePointer<UInt8>, maxLength len: Int) -> Int {
+        public func write(_ buffer: UnsafePointer<UInt8>, maxLength len: Int) -> Int {
             if closed || hasCipherUpdateFailure {
                 return 0
             }
@@ -198,7 +237,7 @@ public class AESEncryptedFile {
             let bytes = Array(UnsafeBufferPointer(start: buffer, count: len))[0..<len]
             
             if let ciphertext = try? cryptor.update(withBytes: bytes, isLast: false) {
-                return super.write(ciphertext, maxLength: len)
+                return _stream.write(ciphertext, maxLength: len)
             } else {
                 print("EncryptedOutputStream ERROR - failed to encrypt update block")
                 self._hasCipherUpdateFailure = true
