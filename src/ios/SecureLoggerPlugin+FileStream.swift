@@ -109,13 +109,13 @@ public class SecureLoggerFileStream {
     }
     
     private func openReadStream(_ filePath: URL) throws -> InputStream {
-        let password = "supersecret" // TODO: load from keychain
+        let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
         return try encryptedFile.openInputStream()
     }
 
     private func openWriteStream(_ filePath: URL) throws -> OutputStream {
-        let password = "supersecret" // TODO: load from keychain
+        let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
         return try encryptedFile.openOutputStream()
     }

@@ -1,4 +1,5 @@
 import CocoaLumberjack
+import CryptoSwift
 
 enum LogLevel : Int {
     case VERBOSE = 2
@@ -11,6 +12,22 @@ enum LogLevel : Int {
 
 class LogEventUtility {
     static let iso6801Formatter = DateFormatter.iSO8601DateWithMillisec
+}
+
+public class CryptoUtility {
+    
+    public static func deriveStreamPassword(_ input: String) throws -> String {
+        
+        let keyBytes = try PKCS5.PBKDF2(
+            password: Array(input.utf8),
+            salt: Array("nevergonnaletyoudown".utf8),
+            iterations: 4096,
+            keyLength: 16,
+            variant: .sha2(SHA2.Variant.sha256)
+        ).calculate()
+        
+        return keyBytes.map { String(format: "%02hhx", $0) }.joined()
+    }
 }
 
 extension DateFormatter {
