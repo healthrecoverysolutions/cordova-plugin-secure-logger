@@ -16,7 +16,8 @@ class LogEventUtility {
 
 public class CryptoUtility {
     
-    public static var deviceUniqueId: String? {
+    public static var deviceFingerprint: String? {
+        // TODO: see if we can get something less public (but still fixed) instead of this
         return UIDevice.current.identifierForVendor?.uuidString
     }
     
@@ -24,7 +25,7 @@ public class CryptoUtility {
         
         let keyBytes = try PKCS5.PBKDF2(
             password: Array(input.utf8),
-            salt: Array(CryptoUtility.deviceUniqueId!.utf8),
+            salt: Array(CryptoUtility.deviceFingerprint!.utf8),
             iterations: 4096,
             keyLength: 16,
             variant: .sha2(SHA2.Variant.sha256)
