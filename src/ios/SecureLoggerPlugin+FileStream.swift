@@ -1,5 +1,4 @@
 import CocoaLumberjack
-import IDZSwiftCommonCrypto
 
 // Generlized encrypted rotating file stream implementation
 public class SecureLoggerFileStream {
@@ -83,11 +82,10 @@ public class SecureLoggerFileStream {
 
         for file in files {
             do {
-                if let readStream = try openReadStream(file) {
-                    openedReadStream = readStream
-                    bytesWritten += Int(readStream.pipeTo(outputStream))
-                }
+                openedReadStream = try openReadStream(file)
+                bytesWritten += Int(openedReadStream!.pipeTo(outputStream))
             } catch {
+                openedReadStream = nil
                 let errorMessage = "\n\n[[FILE DECRYPT FAILURE - " +
                     "${file.name} (${file.length()} bytes)]]" +
                     "\n<<<<<<<<<<<<<<<<\n\(error)\n>>>>>>>>>>>>>>>>\n\n"
@@ -110,26 +108,16 @@ public class SecureLoggerFileStream {
         return comparisonResult == ComparisonResult.orderedAscending
     }
     
-    private func openReadStream(_ filePath: URL) throws -> InputStream? {
-        
-        // TODO: use IDZSwiftCommonCrypto + the file name as IV to create encrypted stream
-        // return InputStream(url: filePath)
-        
-        // !!! IMPORTANT !!!
-        // Don't allow any apps to use unencrypted streams, since this will bleed out sensitive user data
-        print("SecureLoggerFileStream openReadStream() ERROR - encrypted streaming not implemented")
-        return nil
+    private func openReadStream(_ filePath: URL) throws -> InputStream {
+        let password = "supersecret" // TODO: load from keychain
+        let encryptedFile = try AESEncryptedFile(filePath, password: password)
+        return try encryptedFile.openInputStream()
     }
 
-    private func openWriteStream(_ filePath: URL) throws -> OutputStream? {
-        
-        // TODO: use IDZSwiftCommonCrypto + the file name as IV to create encrypted stream
-        // return OutputStream(url: filePath, append: false)
-        
-        // !!! IMPORTANT !!!
-        // Don't allow any apps to use unencrypted streams, since this will bleed out sensitive user data
-        print("SecureLoggerFileStream openWriteStream() ERROR - encrypted streaming not implemented")
-        return nil
+    private func openWriteStream(_ filePath: URL) throws -> OutputStream {
+        let password = "supersecret" // TODO: load from keychain
+        let encryptedFile = try AESEncryptedFile(filePath, password: password)
+        return try encryptedFile.openOutputStream()
     }
 
     private func closeActiveStream() {

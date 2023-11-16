@@ -30,6 +30,7 @@
       </config-file>
       
       <header-file src="src/ios/SecureLoggerPlugin-Bridging-Header.h" type="BridgingHeader" />
+      <source-file src="src/ios/AESEncryptedFile.swift" />
       <source-file src="src/ios/SecureLoggerPlugin+FileStream.swift" />
       <source-file src="src/ios/SecureLoggerPlugin+Utility.swift" />
       <source-file src="src/ios/SecureLoggerPlugin+LumberjackFileProxy.swift" />
@@ -41,7 +42,7 @@
          </config>
          <pods use-frameworks="true">
             <pod name="CocoaLumberjack/Swift" spec="~> 3.8" />
-            <pod name="IDZSwiftCommonCrypto" spec="~> 0.13" />
+            <pod name="CryptoSwift" spec="~> 1.8" />
          </pods>
       </podspec>
     </platform>
