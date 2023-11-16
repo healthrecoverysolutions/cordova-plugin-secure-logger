@@ -16,11 +16,15 @@ class LogEventUtility {
 
 public class CryptoUtility {
     
+    public static var deviceUniqueId: String? {
+        return UIDevice.current.identifierForVendor?.uuidString
+    }
+    
     public static func deriveStreamPassword(_ input: String) throws -> String {
         
         let keyBytes = try PKCS5.PBKDF2(
             password: Array(input.utf8),
-            salt: Array("nevergonnaletyoudown".utf8),
+            salt: Array(CryptoUtility.deviceUniqueId!.utf8),
             iterations: 4096,
             keyLength: 16,
             variant: .sha2(SHA2.Variant.sha256)
