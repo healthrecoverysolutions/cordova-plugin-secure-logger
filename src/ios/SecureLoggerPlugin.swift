@@ -9,15 +9,25 @@ public class SecureLoggerPlugin : CDVPlugin {
     
     @objc(pluginInitialize)
     public override func pluginInitialize() {
+        
         let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let logsDirectory = cachesDirectory.appendingPathComponent("logs")
+        var appRootCacheDirectory = cachesDirectory
+        
+        if let appBundleId = Bundle.main.bundleIdentifier {
+            appRootCacheDirectory = appRootCacheDirectory.appendingPathComponent(appBundleId)
+        }
+        
+        let logsDirectory = appRootCacheDirectory.appendingPathComponent("logs")
         print("using log directory \(logsDirectory)")
-        
-        fileStream = SecureLoggerFileStream(logsDirectory)
-        lumberjackProxy = SecureLoggerLumberjackFileProxy(fileStream!)
-        
-        DDLog.add(lumberjackProxy!)
-        DDLogDebug("SecureLoggerPlugin initialize")
+    
+        DispatchQueue.main.async {
+            
+            self.fileStream = SecureLoggerFileStream(logsDirectory)
+            self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
+            
+            DDLog.add(self.lumberjackProxy!)
+            DDLogDebug("SecureLoggerPlugin initialize")
+        }
     }
 
     @objc(capture:)
@@ -60,8 +70,12 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(getCacheBlob:)
     func getCacheBlob(command: CDVInvokedUrlCommand) {
       DispatchQueue.main.async {
-          let bytes = self.fileStream.getCacheBlob()
-          self.sendOkBytes(command.callbackId, bytes)
+          if let bytes = self.fileStream.getCacheBlob() {
+              print("getCacheBlob() sending response with \(bytes.count) bytes")
+              self.sendOkBytes(command.callbackId, bytes)
+          } else {
+              self.sendError(command.callbackId, "Failed to load cache blob")
+          }
       }
     }
 

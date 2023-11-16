@@ -59,6 +59,7 @@ public class SecureLoggerFileStream {
     func getCacheBlob() -> [UInt8]? {
         
         if destroyed {
+            print("getCacheBlob() stream is destroyed!")
             return nil;
         }
 
@@ -69,6 +70,7 @@ public class SecureLoggerFileStream {
         var files = outputDirectory.listFiles()
         
         if files.count <= 0 {
+            print("getCacheBlob() no files in cache!")
             return []
         }
         
@@ -84,11 +86,13 @@ public class SecureLoggerFileStream {
             do {
                 openedReadStream = try openReadStream(file)
                 bytesWritten += Int(openedReadStream!.pipeTo(outputStream))
+                print("getCacheBlob() wrote \(bytesWritten) bytes to output")
             } catch {
                 openedReadStream = nil
                 let errorMessage = "\n\n[[FILE DECRYPT FAILURE - " +
                     "${file.name} (${file.length()} bytes)]]" +
                     "\n<<<<<<<<<<<<<<<<\n\(error)\n>>>>>>>>>>>>>>>>\n\n"
+                print("getCacheBlob() ERROR: \(errorMessage)")
                 bytesWritten += outputStream.writeText(errorMessage)
             }
             

@@ -209,13 +209,17 @@ extension URL {
         }
     }
     
-    func listFiles() -> [URL] {
+    func listFileNames() -> [String] {
         do {
-            let contents = try FileManager.default.contentsOfDirectory(atPath: self.path)
-            let urls = contents.map { URL.init(string: $0) ?? nil }
-            return urls.filter { $0 != nil && $0!.isRegularFile } as! [URL]
+            return try FileManager.default.contentsOfDirectory(atPath: self.path)
         } catch {
             return []
         }
+    }
+    
+    func listFiles() -> [URL] {
+        return self.listFileNames()
+            .map { self.appendingPathComponent($0) }
+            .filter { $0.isFileURL } as! [URL]
     }
 }
