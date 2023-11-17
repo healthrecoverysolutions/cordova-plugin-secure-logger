@@ -1,6 +1,5 @@
 import Foundation
 import CocoaLumberjack
-import CryptoSwift
 
 enum LogLevel : Int {
     case VERBOSE = 2
@@ -18,21 +17,12 @@ class LogEventUtility {
 public class CryptoUtility {
     
     public static var deviceFingerprint: String? {
-        // TODO: see if we can get something less public (but still fixed) instead of this
         return UIDevice.current.identifierForVendor?.uuidString
     }
     
     public static func deriveStreamPassword(_ input: String) throws -> String {
-        
-        let keyBytes = try PKCS5.PBKDF2(
-            password: Array(input.utf8),
-            salt: Array(CryptoUtility.deviceFingerprint!.utf8),
-            iterations: 8,
-            keyLength: 16,
-            variant: .sha2(SHA2.Variant.sha256)
-        ).calculate()
-        
-        return keyBytes.map { String(format: "%02hhx", $0) }.joined()
+        // TODO: come up with a less terrible derivation than this
+        return "\(CryptoUtility.deviceFingerprint!)+\(input)"
     }
 }
 
