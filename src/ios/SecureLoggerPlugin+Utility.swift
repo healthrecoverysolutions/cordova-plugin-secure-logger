@@ -1,3 +1,4 @@
+import Foundation
 import CocoaLumberjack
 import CryptoSwift
 
@@ -176,14 +177,6 @@ extension URL {
     
     func deleteFileSystemEntry() -> Bool {
         do {
-            if (self.isDirectory) {
-                for entry in self.listEntries() {
-                    if !entry.deleteFileSystemEntry() {
-                        print("ERROR: file system delete failed for entry at \(entry.path)")
-                        return false
-                    }
-                }
-            }
             try FileManager.default.removeItem(at: self)
             return true
         } catch {

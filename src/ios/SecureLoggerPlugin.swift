@@ -3,13 +3,13 @@ import CocoaLumberjack
 
 @objc(SecureLoggerPlugin)
 public class SecureLoggerPlugin : CDVPlugin {
-    
-    private let streamLock = NSLock()
+
     private var fileStream: SecureLoggerFileStream!
     private var lumberjackProxy: SecureLoggerLumberjackFileProxy!
     
     @objc(pluginInitialize)
     public override func pluginInitialize() {
+        super.pluginInitialize()
         
         let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         var appRootCacheDirectory = cachesDirectory
@@ -26,6 +26,13 @@ public class SecureLoggerPlugin : CDVPlugin {
         
         DDLog.add(self.lumberjackProxy!)
         DDLogDebug("SecureLoggerPlugin initialize")
+    }
+    
+    @objc(onAppTerminate)
+    override public func onAppTerminate() {
+        DDLogDebug("SecureLoggerPlugin onAppTerminate")
+        self.fileStream.destroy()
+        super.onAppTerminate()
     }
 
     @objc(capture:)
@@ -45,9 +52,7 @@ public class SecureLoggerPlugin : CDVPlugin {
         DispatchQueue.main.async(flags: .barrier) {
             if let text = command.arguments[0] as? String {
                 do {
-                    self.streamLock.lock()
                     try self.fileStream.append(text)
-                    self.streamLock.unlock()
                     self.sendOk(command.callbackId)
                 } catch {
                     print("Failed to capture webview text in log file!")
@@ -62,9 +67,7 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(clearCache:)
     func clearCache(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            self.streamLock.lock()
             let success = self.fileStream.deleteAllCacheFiles()
-            self.streamLock.unlock()
             print("clearCache success = \(success)")
             self.sendOk(command.callbackId, String(success))
       }
@@ -73,14 +76,12 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(getCacheBlob:)
     func getCacheBlob(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            self.streamLock.lock()
             if let bytes = self.fileStream.getCacheBlob() {
                 print("getCacheBlob() sending response with \(bytes.count) bytes")
                 self.sendOkBytes(command.callbackId, bytes)
             } else {
                 self.sendError(command.callbackId, "Failed to load cache blob")
             }
-            self.streamLock.unlock()
         }
     }
 
@@ -101,14 +102,12 @@ public class SecureLoggerPlugin : CDVPlugin {
 
     private func captureLogEvents(_ eventList: [NSDictionary]) {
         for logEvent in eventList {
-            self.streamLock.lock()
             do {
                 let logLine = logEvent.asSerializedWebEvent()
                 try fileStream.appendLine(logLine)
             } catch {
                 print("Failed to capture webview event in log file!")
             }
-            self.streamLock.unlock()
         }
     }
 }

@@ -1,4 +1,5 @@
-import CocoaLumberjack
+import Foundation
+import CryptoSwift
 
 // Generlized encrypted rotating file stream implementation
 public class SecureLoggerFileStream {
@@ -11,6 +12,7 @@ public class SecureLoggerFileStream {
     private static let MAX_FILE_COUNT = 20
     
     private let outputDirectory: URL
+    private let mutex = NSLock()
     private var destroyed = false
     private var activeFilePath: URL?
     private var activeStream: OutputStreamLike?
@@ -32,8 +34,10 @@ public class SecureLoggerFileStream {
     }
     
     func destroy() {
+        self.mutex.lock()
         self.destroyed = true
         self.closeActiveStream()
+        self.mutex.unlock()
     }
     
     func appendLine(_ line: String) throws {
@@ -43,17 +47,22 @@ public class SecureLoggerFileStream {
     }
 
     func append(_ text: String) throws {
+        self.mutex.lock()
         if !self.destroyed && !text.isEmpty {
             if let stream = try self.loadActiveStream() {
                 stream.writeText(text)
             }
         }
+        self.mutex.unlock()
     }
     
     func deleteAllCacheFiles() -> Bool {
-        return !self.destroyed
+        self.mutex.lock()
+        let result = !self.destroyed
             && self.outputDirectory.deleteFileSystemEntry()
             && self.outputDirectory.mkdirs()
+        self.mutex.unlock()
+        return result
     }
     
     func getCacheBlob() -> [UInt8]? {
@@ -62,6 +71,8 @@ public class SecureLoggerFileStream {
             print("getCacheBlob() stream is destroyed!")
             return nil;
         }
+        
+        self.mutex.lock()
 
         // Data at the end of the file will be partially corrupted if
         // the stream is not shut down, so need to close it before we can read it
@@ -99,7 +110,10 @@ public class SecureLoggerFileStream {
             openedReadStream?.close()
         }
 
-        return Array(buffer[..<bytesWritten])
+        let result = Array(buffer[..<bytesWritten])
+        self.mutex.unlock()
+        
+        return result
     }
     
     private static func generateArchiveFileName() -> String {
