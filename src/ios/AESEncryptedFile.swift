@@ -58,17 +58,27 @@ public class CipherInputStream : InputStreamLike {
             return 0
         }
         
-        var ciphertextBuffer = [UInt8](repeating: 0, count: len)
-        self.stream.read(&ciphertextBuffer, maxLength: len)
+        var encryptedBytes = [UInt8](repeating: 0, count: len)
+        let readCount = self.stream.read(&encryptedBytes, maxLength: len)
         
-        if let plaintext = try? self.cryptor.update(withBytes: ciphertextBuffer) {
-            buffer.update(from: plaintext, count: plaintext.count)
-            return plaintext.count
-        } else {
+        if readCount <= 0 {
+            return 0
+        }
+        
+        guard let plainText = try? self.cryptor.update(withBytes: encryptedBytes[0..<readCount]) else {
             print("EncryptedInputStream ERROR - failed to decrypt update block")
             self.hasCipherUpdateFailure = true
             return 0
         }
+        
+        if plainText.isEmpty {
+            print("EncryptedInputStream WARN - read empty content from inner stream")
+            return 0
+        }
+        
+        print("decrypted \(plainText.count) bytes = '\(String(describing: String(bytes: plainText, encoding: .utf8)))'")
+        buffer.initialize(from: plainText, count: plainText.count)
+        return plainText.count
     }
 }
 
@@ -114,11 +124,11 @@ public class CipherOutputStream : OutputStreamLike {
         
         if let cipherText = try? self.cryptor.update(withBytes: bytes, isLast: false) {
             return self.stream.write(cipherText, maxLength: len)
-        } else {
-            print("EncryptedOutputStream ERROR - failed to encrypt update block")
-            self.hasCipherUpdateFailure = true
-            return 0
         }
+        
+        print("EncryptedOutputStream ERROR - failed to encrypt update block")
+        self.hasCipherUpdateFailure = true
+        return 0
     }
 }
 

@@ -97,7 +97,7 @@ public class SecureLoggerFileStream {
             do {
                 openedReadStream = try openReadStream(file)
                 bytesWritten += Int(openedReadStream!.pipeTo(outputStream))
-                print("getCacheBlob() wrote \(bytesWritten) bytes to output")
+                print("getCacheBlob() output size = \(bytesWritten)")
             } catch {
                 openedReadStream = nil
                 let errorMessage = "\n\n[[FILE DECRYPT FAILURE - " +
