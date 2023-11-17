@@ -176,6 +176,14 @@ extension URL {
     
     func deleteFileSystemEntry() -> Bool {
         do {
+            if (self.isDirectory) {
+                for entry in self.listEntries() {
+                    if !entry.deleteFileSystemEntry() {
+                        print("ERROR: file system delete failed for entry at \(entry.path)")
+                        return false
+                    }
+                }
+            }
             try FileManager.default.removeItem(at: self)
             return true
         } catch {
@@ -204,7 +212,7 @@ extension URL {
         }
     }
     
-    func listFileNames() -> [String] {
+    func listEntryNames() -> [String] {
         do {
             return try FileManager.default.contentsOfDirectory(atPath: self.path)
         } catch {
@@ -212,9 +220,14 @@ extension URL {
         }
     }
     
-    func listFiles() -> [URL] {
-        return self.listFileNames()
+    func listEntries() -> [URL] {
+        return self.listEntryNames()
             .map { self.appendingPathComponent($0) }
-            .filter { $0.isFileURL } as! [URL]
+            .filter { $0.fileOrDirectoryExists() }
+    }
+    
+    func listFiles() -> [URL] {
+        return self.listEntries()
+            .filter { $0.isFileURL }
     }
 }

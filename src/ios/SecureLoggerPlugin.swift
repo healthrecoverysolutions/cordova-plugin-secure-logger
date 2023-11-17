@@ -31,24 +31,23 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(capture:)
     func capture(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            self.streamLock.lock()
             if let eventList = command.arguments[0] as? [NSDictionary] {
                 self.captureLogEvents(eventList)
                 self.sendOk(command.callbackId)
             } else {
                 self.sendError(command.callbackId, "input must be an array of events")
             }
-            self.streamLock.unlock()
         }
     }
     
     @objc(captureText:)
     func captureText(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            self.streamLock.lock()
             if let text = command.arguments[0] as? String {
                 do {
+                    self.streamLock.lock()
                     try self.fileStream.append(text)
+                    self.streamLock.unlock()
                     self.sendOk(command.callbackId)
                 } catch {
                     print("Failed to capture webview text in log file!")
@@ -57,7 +56,6 @@ public class SecureLoggerPlugin : CDVPlugin {
             } else {
                 self.sendError(command.callbackId, "input must be a string")
             }
-            self.streamLock.unlock()
         }
     }
     
@@ -66,9 +64,9 @@ public class SecureLoggerPlugin : CDVPlugin {
         DispatchQueue.main.async(flags: .barrier) {
             self.streamLock.lock()
             let success = self.fileStream.deleteAllCacheFiles()
+            self.streamLock.unlock()
             print("clearCache success = \(success)")
             self.sendOk(command.callbackId, String(success))
-            self.streamLock.unlock()
       }
     }
     
@@ -103,12 +101,14 @@ public class SecureLoggerPlugin : CDVPlugin {
 
     private func captureLogEvents(_ eventList: [NSDictionary]) {
         for logEvent in eventList {
+            self.streamLock.lock()
             do {
                 let logLine = logEvent.asSerializedWebEvent()
                 try fileStream.appendLine(logLine)
             } catch {
                 print("Failed to capture webview event in log file!")
             }
+            self.streamLock.unlock()
         }
     }
 }
