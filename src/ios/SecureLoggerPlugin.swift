@@ -20,14 +20,11 @@ public class SecureLoggerPlugin : CDVPlugin {
         let logsDirectory = appRootCacheDirectory.appendingPathComponent("logs")
         print("using log directory \(logsDirectory)")
     
-        DispatchQueue.main.async {
-            
-            self.fileStream = SecureLoggerFileStream(logsDirectory)
-            self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
-            
-            DDLog.add(self.lumberjackProxy!)
-            DDLogDebug("SecureLoggerPlugin initialize")
-        }
+        self.fileStream = SecureLoggerFileStream(logsDirectory)
+        self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
+        
+        DDLog.add(self.lumberjackProxy!)
+        DDLogDebug("SecureLoggerPlugin initialize")
     }
 
     @objc(capture:)

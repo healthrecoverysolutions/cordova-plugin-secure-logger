@@ -113,15 +113,21 @@ public class SecureLoggerFileStream {
     }
     
     private func openReadStream(_ filePath: URL) throws -> InputStreamLike {
+        let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
-        return try encryptedFile.openInputStream()
+        let inputStream = try encryptedFile.openInputStream()
+        print("logger input stream created in \(Date.nowMilliseconds - startTime) ms")
+        return inputStream;
     }
 
     private func openWriteStream(_ filePath: URL) throws -> OutputStreamLike {
+        let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = try AESEncryptedFile(filePath, password: password)
-        return try encryptedFile.openOutputStream()
+        let outputStream = try encryptedFile.openOutputStream()
+        print("logger output stream created in \(Date.nowMilliseconds - startTime) ms")
+        return outputStream;
     }
 
     private func closeActiveStream() {

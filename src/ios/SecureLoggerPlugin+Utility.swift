@@ -26,7 +26,7 @@ public class CryptoUtility {
         let keyBytes = try PKCS5.PBKDF2(
             password: Array(input.utf8),
             salt: Array(CryptoUtility.deviceFingerprint!.utf8),
-            iterations: 4096,
+            iterations: 8,
             keyLength: 16,
             variant: .sha2(SHA2.Variant.sha256)
         ).calculate()
