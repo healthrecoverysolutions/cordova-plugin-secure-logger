@@ -176,14 +176,8 @@ extension URL {
     
     func deleteFileSystemEntry() -> Bool {
         do {
-            let fs = FileManager.default
-            let target = self.path
-            if fs.isDeletableFile(atPath: target) {
-                try fs.removeItem(atPath: target)
-                return true
-            } else {
-                return false
-            }
+            try FileManager.default.removeItem(at: self)
+            return true
         } catch {
             return false
         }
@@ -200,9 +194,10 @@ extension URL {
     
     func mkdirs() -> Bool {
         do {
-            let fs = FileManager.default
-            let target = self.path
-            try fs.createDirectory(atPath: target, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                atPath: self.path,
+                withIntermediateDirectories: true
+            )
             return true
         } catch {
             return false

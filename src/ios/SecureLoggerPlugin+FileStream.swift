@@ -32,33 +32,33 @@ public class SecureLoggerFileStream {
     }
     
     func destroy() {
-        destroyed = true
-        closeActiveStream()
+        self.destroyed = true
+        self.closeActiveStream()
     }
     
     func appendLine(_ line: String) throws {
-        if !destroyed && !line.isEmpty {
+        if !self.destroyed && !line.isEmpty {
             try self.append(line + "\n")
         }
     }
 
     func append(_ text: String) throws {
-        if !destroyed && !text.isEmpty {
-            if let stream = try loadActiveStream() {
+        if !self.destroyed && !text.isEmpty {
+            if let stream = try self.loadActiveStream() {
                 stream.writeText(text)
             }
         }
     }
     
     func deleteAllCacheFiles() -> Bool {
-        return !destroyed 
-            && outputDirectory.deleteFileSystemEntry()
-            && outputDirectory.mkdirs()
+        return !self.destroyed
+            && self.outputDirectory.deleteFileSystemEntry()
+            && self.outputDirectory.mkdirs()
     }
     
     func getCacheBlob() -> [UInt8]? {
         
-        if destroyed {
+        if self.destroyed {
             print("getCacheBlob() stream is destroyed!")
             return nil;
         }

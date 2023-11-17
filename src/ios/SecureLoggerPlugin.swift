@@ -4,6 +4,7 @@ import CocoaLumberjack
 @objc(SecureLoggerPlugin)
 public class SecureLoggerPlugin : CDVPlugin {
     
+    private let streamLock = NSLock()
     private var fileStream: SecureLoggerFileStream!
     private var lumberjackProxy: SecureLoggerLumberjackFileProxy!
     
@@ -29,51 +30,60 @@ public class SecureLoggerPlugin : CDVPlugin {
 
     @objc(capture:)
     func capture(command: CDVInvokedUrlCommand) {
-      DispatchQueue.main.async {
-          if let eventList = command.arguments[0] as? [NSDictionary] {
-              self.captureLogEvents(eventList)
-              self.sendOk(command.callbackId)
-          } else {
-              self.sendError(command.callbackId, "input must be an array of events")
-          }
-      }
+        DispatchQueue.main.async(flags: .barrier) {
+            self.streamLock.lock()
+            if let eventList = command.arguments[0] as? [NSDictionary] {
+                self.captureLogEvents(eventList)
+                self.sendOk(command.callbackId)
+            } else {
+                self.sendError(command.callbackId, "input must be an array of events")
+            }
+            self.streamLock.unlock()
+        }
     }
     
     @objc(captureText:)
     func captureText(command: CDVInvokedUrlCommand) {
-      DispatchQueue.main.async {
-          if let text = command.arguments[0] as? String {
-              do {
-                  try self.fileStream.append(text)
-                  self.sendOk(command.callbackId)
-              } catch {
-                  print("Failed to capture webview text in log file!")
-                  self.sendError(command.callbackId, "failed to capture log text")
-              }
-          } else {
-              self.sendError(command.callbackId, "input must be a string")
-          }
-      }
+        DispatchQueue.main.async(flags: .barrier) {
+            self.streamLock.lock()
+            if let text = command.arguments[0] as? String {
+                do {
+                    try self.fileStream.append(text)
+                    self.sendOk(command.callbackId)
+                } catch {
+                    print("Failed to capture webview text in log file!")
+                    self.sendError(command.callbackId, "failed to capture log text")
+                }
+            } else {
+                self.sendError(command.callbackId, "input must be a string")
+            }
+            self.streamLock.unlock()
+        }
     }
     
     @objc(clearCache:)
     func clearCache(command: CDVInvokedUrlCommand) {
-      DispatchQueue.main.async {
-          let success = self.fileStream.deleteAllCacheFiles()
-          self.sendOk(command.callbackId, String(success))
+        DispatchQueue.main.async(flags: .barrier) {
+            self.streamLock.lock()
+            let success = self.fileStream.deleteAllCacheFiles()
+            print("clearCache success = \(success)")
+            self.sendOk(command.callbackId, String(success))
+            self.streamLock.unlock()
       }
     }
     
     @objc(getCacheBlob:)
     func getCacheBlob(command: CDVInvokedUrlCommand) {
-      DispatchQueue.main.async {
-          if let bytes = self.fileStream.getCacheBlob() {
-              print("getCacheBlob() sending response with \(bytes.count) bytes")
-              self.sendOkBytes(command.callbackId, bytes)
-          } else {
-              self.sendError(command.callbackId, "Failed to load cache blob")
-          }
-      }
+        DispatchQueue.main.async(flags: .barrier) {
+            self.streamLock.lock()
+            if let bytes = self.fileStream.getCacheBlob() {
+                print("getCacheBlob() sending response with \(bytes.count) bytes")
+                self.sendOkBytes(command.callbackId, bytes)
+            } else {
+                self.sendError(command.callbackId, "Failed to load cache blob")
+            }
+            self.streamLock.unlock()
+        }
     }
 
     private func sendOk(_ callbackId: String, _ message: String? = nil) {
