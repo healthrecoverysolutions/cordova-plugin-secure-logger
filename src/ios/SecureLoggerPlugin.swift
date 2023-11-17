@@ -81,8 +81,8 @@ public class SecureLoggerPlugin : CDVPlugin {
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
     }
     
-    private func sendOkBytes(_ callbackId: String, _ message: [UInt8]? = nil) {
-        let pluginResult = CDVPluginResult(status: .ok, messageAs: message)
+    private func sendOkBytes(_ callbackId: String, _ message: [UInt8]) {
+        let pluginResult = CDVPluginResult(status: .ok, messageAsArrayBuffer: Data(message))
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
     }
     
