@@ -1,5 +1,5 @@
 import Foundation
-import CryptoSwift
+import IDZSwiftCommonCrypto
 
 // Generlized encrypted rotating file stream implementation
 public class SecureLoggerFileStream {
@@ -50,7 +50,7 @@ public class SecureLoggerFileStream {
         self.mutex.lock()
         if !self.destroyed && !text.isEmpty {
             if let stream = try self.loadActiveStream() {
-                stream.writeText(text)
+                stream.writeUtf8(text)
             }
         }
         self.mutex.unlock()
@@ -85,10 +85,7 @@ public class SecureLoggerFileStream {
             return []
         }
         
-        let bufferSize = Int(Double(maxCacheSize) * 1.25)
-        var buffer = [UInt8](repeating: 0, count: bufferSize)
-        let outputStream = OutputStream.init(toBuffer: &buffer, capacity: bufferSize)
-        var bytesWritten: Int = 0
+        var accumulator = ""
 
         files.sort(by: SecureLoggerFileStream.fileNameComparator)
         var openedReadStream: InputStreamLike? = nil
@@ -96,24 +93,26 @@ public class SecureLoggerFileStream {
         for file in files {
             do {
                 openedReadStream = try openReadStream(file)
-                bytesWritten += Int(openedReadStream!.pipeTo(outputStream))
-                print("getCacheBlob() output size = \(bytesWritten)")
+                let text = openedReadStream!.readAllText()
+                print("read \(text.count) bytes")
+                accumulator += text
+                print("getCacheBlob() output size = \(accumulator.count)")
             } catch {
                 openedReadStream = nil
                 let errorMessage = "\n\n[[FILE DECRYPT FAILURE - " +
                     "${file.name} (${file.length()} bytes)]]" +
                     "\n<<<<<<<<<<<<<<<<\n\(error)\n>>>>>>>>>>>>>>>>\n\n"
                 print("getCacheBlob() ERROR: \(errorMessage)")
-                bytesWritten += outputStream.writeText(errorMessage)
+                accumulator += errorMessage
             }
             
             openedReadStream?.close()
         }
 
-        let result = Array(buffer[..<bytesWritten])
+        let resultBytes = Array(accumulator.utf8)
         self.mutex.unlock()
         
-        return result
+        return resultBytes
     }
     
     private static func generateArchiveFileName() -> String {
@@ -129,7 +128,7 @@ public class SecureLoggerFileStream {
     private func openReadStream(_ filePath: URL) throws -> InputStreamLike {
         let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
-        let encryptedFile = try AESEncryptedFile(filePath, password: password)
+        let encryptedFile = AESEncryptedFile(filePath, password: password)
         let inputStream = try encryptedFile.openInputStream()
         print("logger input stream created in \(Date.nowMilliseconds - startTime) ms")
         return inputStream;
@@ -138,7 +137,7 @@ public class SecureLoggerFileStream {
     private func openWriteStream(_ filePath: URL) throws -> OutputStreamLike {
         let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
-        let encryptedFile = try AESEncryptedFile(filePath, password: password)
+        let encryptedFile = AESEncryptedFile(filePath, password: password)
         let outputStream = try encryptedFile.openOutputStream()
         print("logger output stream created in \(Date.nowMilliseconds - startTime) ms")
         return outputStream;

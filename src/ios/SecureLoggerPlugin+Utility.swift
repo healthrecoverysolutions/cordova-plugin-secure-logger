@@ -120,37 +120,6 @@ extension NSDictionary {
     }
 }
 
-extension InputStreamLike {
-
-    @discardableResult
-    func pipeTo(_ output: OutputStreamLike) -> Int {
-        
-        let bufferSize = 8192
-        var buffer = [UInt8](repeating: 0, count: bufferSize)
-        var transferred: Int = 0
-        var read: Int = 1
-        
-        while read > 0 && self.hasBytesAvailable {
-            read = self.read(&buffer, maxLength: bufferSize)
-            if read > 0 {
-                output.write(buffer, maxLength: read)
-                transferred += read
-            }
-        }
-        
-        return transferred
-    }
-}
-
-extension OutputStreamLike {
-    
-    @discardableResult
-    func writeText(_ text: String) -> Int {
-        let utf8Bytes = Array(text.utf8)
-        return self.write(utf8Bytes, maxLength: utf8Bytes.count)
-    }
-}
-
 extension URL {
     
     var isRegularFile: Bool {
