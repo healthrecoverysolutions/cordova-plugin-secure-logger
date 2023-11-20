@@ -41,7 +41,7 @@
          </config>
          <pods use-frameworks="true">
             <pod name="CocoaLumberjack/Swift" spec="~> 3.8" />
-            <pod name="IDZSwiftCommonCrypto" git="https://github.com/healthrecoverysolutions/IDZSwiftCommonCrypto.git" branch="feat/cipher-streams" />
+            <pod name="IDZSwiftCommonCrypto" git="https://github.com/healthrecoverysolutions/IDZSwiftCommonCrypto.git" tag="hrs-1.0.0" />
          </pods>
       </podspec>
     </platform>
