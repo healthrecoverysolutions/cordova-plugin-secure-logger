@@ -27,6 +27,18 @@ function invokePlugin(method) {
     }
     return cordovaExecPromise(SECURE_LOGGER_PLUGIN, method, args);
 }
+function normalizeConfigureResult(value) {
+    if (!value) {
+        return { success: false, error: "invalid configure response: ".concat(value) };
+    }
+    if (!Array.isArray(value.errors)) {
+        value.errors = [];
+    }
+    if (typeof value.success !== 'boolean') {
+        value.success = !value.error && value.errors.length <= 0;
+    }
+    return value;
+}
 var SecureLoggerCordovaInterface = /** @class */ (function () {
     function SecureLoggerCordovaInterface() {
     }
@@ -59,6 +71,14 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
      */
     SecureLoggerCordovaInterface.prototype.getCacheBlob = function () {
         return invokePlugin('getCacheBlob');
+    };
+    /**
+     * Customize how this plugin should operate.
+     */
+    SecureLoggerCordovaInterface.prototype.configure = function (options) {
+        return invokePlugin('configure', options)
+            .then(normalizeConfigureResult)
+            .then(function (result) { return result.success ? result : Promise.reject(result); });
     };
     return SecureLoggerCordovaInterface;
 }());
