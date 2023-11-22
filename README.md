@@ -32,6 +32,10 @@ Cordova:
 cordova plugin add git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#1.0.0
 ```
 
+### API
+
+Source documentation can be found [here](https://healthrecoverysolutions.github.io/cordova-plugin-secure-logger/)
+
 ## Usage
 
 ### Logging Events
@@ -91,4 +95,70 @@ async function uploadLogs(): Promise<void> {
     // upload / share it somewhere
     http.post('/log-capture', bodyBlob).then(...)
 }
+```
+
+### Integrations
+
+You can use [@obsidize/rx-console](https://www.npmjs.com/package/@obsidize/rx-console) to put your webview logging on overdrive
+
+```typescript
+/* logger-bootstrap.ts */
+import { getPrimaryLoggerTransport, Logger, LogEvent } from '@obsidize/rx-console';
+import { SecureLogger, SecureLogEvent, SecureLogLevel } from 'cordova-plugin-secure-logger';
+
+const primaryTransport = getPrimaryLoggerTransport();
+const mainLogger = new Logger('Main');
+
+let eventCache: SecureLogEvent[] = [];
+
+function remapLogLevel(level: number): SecureLogLevel {
+    switch (level) {
+        case LogLevel.VERBOSE:  return SecureLogLevel.VERBOSE;
+        case LogLevel.TRACE:    return SecureLogLevel.VERBOSE;
+        case LogLevel.DEBUG:    return SecureLogLevel.DEBUG;
+        case LogLevel.INFO:     return SecureLogLevel.INFO;
+        case LogLevel.WARN:     return SecureLogLevel.WARN;
+        case LogLevel.ERROR:    return SecureLogLevel.ERROR;
+        case LogLevel.FATAL:    return SecureLogLevel.FATAL;
+        default:                return SecureLogLevel.VERBOSE;
+    }
+}
+
+function convertLogEventToNative(ev: LogEvent): SecureLogEvent {
+    return {
+        level: remapLogLevel(ev.level),
+        timestamp: ev.timestamp,
+        tag: ev.tag,
+        message: ev.message
+    };
+}
+
+async function flushEventCache() {
+    if (!eventCache || eventCache.length <= 0) {
+        return;
+    }
+
+    await SecureLogger.capture(eventCache).catch((e) => {
+        mainLogger.error(`failed to capture logs!`, e);
+    });
+
+    eventCache = [];
+}
+
+function captureEvent(ev: LogEvent) {
+    eventCache.push(convertLogEventToNative(ev));
+}
+
+function setupNativeProxy(flushIntervalMs: number) {
+    primaryTransport
+        .disableEventCaching()
+        .enableDefaultBroadcast()
+        .events()
+        .addListener(captureEvent);
+
+    setInterval(flushEventCache, flushIntervalMs);
+}
+
+setupNativeProxy(5000);
+mainLogger.debug(`webview-to-native logging is initialized!`);
 ```
