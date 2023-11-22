@@ -92,7 +92,7 @@ public class SecureLoggerFileStream {
     private static let RFS_SERIALIZER_VERSION = 1
     
     private let outputDirectory: URL
-    private let options: SecureLoggerFileStreamOptions
+    private var _options: SecureLoggerFileStreamOptions
     private let mutex = NSLock()
     private var destroyed = false
     private var activeFilePath: URL?
@@ -100,35 +100,44 @@ public class SecureLoggerFileStream {
     
     init(_ outputDirectory: URL, options: SecureLoggerFileStreamOptions) {
         self.outputDirectory = outputDirectory
-        self.options = options
+        self._options = options
     }
 
     private var maxFileSize: UInt64 {
-        return self.options.maxFileSizeBytes
+        return self._options.maxFileSizeBytes
     }
     
     private var maxCacheSize: UInt64 {
-        return self.options.maxTotalCacheSizeBytes
+        return self._options.maxTotalCacheSizeBytes
     }
     
     private var maxFileCount: Int {
-        return self.options.maxFileCount
+        return self._options.maxFileCount
     }
     
-    func destroy() {
+    public var options: SecureLoggerFileStreamOptions {
+        get { self._options.copy() }
+        set {
+            self.mutex.lock()
+            self._options = newValue
+            self.mutex.unlock()
+        }
+    }
+    
+    public func destroy() {
         self.mutex.lock()
         self.destroyed = true
         self.closeActiveStream()
         self.mutex.unlock()
     }
     
-    func appendLine(_ line: String) throws {
+    public func appendLine(_ line: String) throws {
         if !self.destroyed && !line.isEmpty {
             try self.append(line + "\n")
         }
     }
 
-    func append(_ text: String) throws {
+    public func append(_ text: String) throws {
         self.mutex.lock()
         if !self.destroyed && !text.isEmpty {
             if let stream = try self.loadActiveStream() {
@@ -138,7 +147,7 @@ public class SecureLoggerFileStream {
         self.mutex.unlock()
     }
     
-    func deleteAllCacheFiles() -> Bool {
+    public func deleteAllCacheFiles() -> Bool {
         self.mutex.lock()
         let result = !self.destroyed
             && self.outputDirectory.deleteFileSystemEntry()
@@ -147,7 +156,7 @@ public class SecureLoggerFileStream {
         return result
     }
     
-    func getCacheBlob() -> [UInt8]? {
+    public func getCacheBlob() -> [UInt8]? {
         
         if self.destroyed {
             print("getCacheBlob() stream is destroyed!")

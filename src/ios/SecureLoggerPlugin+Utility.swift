@@ -287,4 +287,26 @@ extension URL {
         return self.listEntries()
             .filter { $0.isFileURL }
     }
+    
+    func readJson() -> [String: Any]? {
+        do {
+            let jsonData = try Data(contentsOf: self, options: .mappedIfSafe)
+            let json = try JSONSerialization.jsonObject(with: jsonData, options: [.mutableContainers, .mutableLeaves])
+            return json as? [String: Any]
+        } catch {
+            print("readJson() ERROR: \(error)")
+            return nil
+        }
+    }
+    
+    func writeJson(_ value: [String: Any]) -> Bool {
+        do {
+            let data = try JSONSerialization.data(withJSONObject: value)
+            try data.write(to: self, options: [.atomic])
+            return true
+        } catch {
+            print("writeJson() ERROR: \(error)")
+            return false
+        }
+    }
 }

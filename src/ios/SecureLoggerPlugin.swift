@@ -3,7 +3,11 @@ import CocoaLumberjack
 
 @objc(SecureLoggerPlugin)
 public class SecureLoggerPlugin : CDVPlugin {
+    private static let LOG_DIR = "logs"
+    private static let LOG_CONFIG_FILE = "logs-config.json"
+    private static let CONFIG_KEY_MIN_LEVEL = "minLevel"
 
+    private var logsConfigFile: URL!
     private var fileStream: SecureLoggerFileStream!
     private var lumberjackProxy: SecureLoggerLumberjackFileProxy!
     
@@ -18,20 +22,23 @@ public class SecureLoggerPlugin : CDVPlugin {
             appRootCacheDirectory = appRootCacheDirectory.appendingPathComponent(appBundleId)
         }
         
-        let logsDirectory = appRootCacheDirectory.appendingPathComponent("logs")
+        let logsDirectory = appRootCacheDirectory.appendingPathComponent(SecureLoggerPlugin.LOG_DIR)
         print("using log directory \(logsDirectory)")
     
         let streamOptions = SecureLoggerFileStreamOptions()
+
+        self.logsConfigFile = appRootCacheDirectory.appendingPathComponent(SecureLoggerPlugin.LOG_CONFIG_FILE)
         self.fileStream = SecureLoggerFileStream(logsDirectory, options: streamOptions)
         self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
         
+        tryLoadStoredConfig()
         DDLog.add(self.lumberjackProxy!)
-        DDLogDebug("SecureLoggerPlugin initialize")
+        DDLogDebug("init success!")
     }
     
     @objc(onAppTerminate)
     override public func onAppTerminate() {
-        DDLogDebug("SecureLoggerPlugin onAppTerminate")
+        DDLogDebug("running teardown actions...")
         self.fileStream.destroy()
         super.onAppTerminate()
     }
@@ -86,6 +93,14 @@ public class SecureLoggerPlugin : CDVPlugin {
         }
     }
 
+    @objc(configure:)
+    func configure(command: CDVInvokedUrlCommand) {
+        DispatchQueue.main.async(flags: .barrier) {
+            print("TODO: configure()")
+            self.sendOk(command.callbackId)
+        }
+    }
+
     private func sendOk(_ callbackId: String, _ message: String? = nil) {
         let pluginResult = CDVPluginResult(status: .ok, messageAs: message)
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
@@ -109,6 +124,30 @@ public class SecureLoggerPlugin : CDVPlugin {
             } catch {
                 print("Failed to capture webview event in log file!")
             }
+        }
+    }
+    
+    private func trySaveCurrentConfig() {
+        var output = fileStream.options.toJSON()
+        output[SecureLoggerPlugin.CONFIG_KEY_MIN_LEVEL] = lumberjackProxy.minLevelInt
+        
+        if !logsConfigFile.writeJson(output) {
+            DDLogWarn("failed to save current config")
+        }
+    }
+    
+    private func tryLoadStoredConfig() {
+        guard let input = logsConfigFile.readJson() else {
+            DDLogWarn("failed to load stored config")
+            return
+        }
+        
+        let storedOptions = fileStream.options.fromJSON(input)
+        fileStream.options = storedOptions
+        
+        if let minLevelInt = input[SecureLoggerPlugin.CONFIG_KEY_MIN_LEVEL] as? Int {
+            DDLogDebug("updating minLevel to \(minLevelInt) (from storage)")
+            lumberjackProxy.minLevelInt = minLevelInt
         }
     }
 }
