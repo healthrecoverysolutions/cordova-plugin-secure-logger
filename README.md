@@ -32,11 +32,11 @@ Cordova:
 cordova plugin add git+https://github.com/healthrecoverysolutions/cordova-plugin-secure-logger.git#1.0.1
 ```
 
+## Usage
+
 ### API
 
 Source documentation can be found [here](https://healthrecoverysolutions.github.io/cordova-plugin-secure-logger/)
-
-## Usage
 
 ### Logging Events
 
