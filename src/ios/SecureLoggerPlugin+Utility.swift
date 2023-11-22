@@ -1,5 +1,7 @@
 import Foundation
+import Security
 import CocoaLumberjack
+import IDZSwiftCommonCrypto
 
 enum LogLevel : Int {
     case VERBOSE = 2
@@ -15,14 +17,117 @@ class LogEventUtility {
 }
 
 public class CryptoUtility {
-    
-    public static var deviceFingerprint: String? {
-        return UIDevice.current.identifierForVendor?.uuidString
+    public enum Error : Swift.Error {
+        case keyGenerationFailed
     }
     
     public static func deriveStreamPassword(_ input: String) throws -> String {
-        // TODO: come up with a less terrible derivation than this
-        return "\(CryptoUtility.deviceFingerprint!)+\(input)"
+        let fingerprint = try CryptoUtility.loadLoggerIdentifier()
+        return "\(fingerprint)+\(input)"
+    }
+    
+    private static func loadLoggerIdentifier() throws -> String {
+        
+        let key = "loggerId"
+        
+        if let identifier = KeychainUtility.getValue(forKey: key) {
+            return identifier
+        }
+        
+        let identifierBytes = try Random.generateBytes(byteCount: 16)
+        let identifier = hexString(fromArray: identifierBytes)
+        
+        if KeychainUtility.addValue(identifier, forKey: key) {
+            return identifier
+        }
+        
+        throw Error.keyGenerationFailed
+    }
+}
+
+public class KeychainUtility {
+    
+    private static func getCompositeKey(_ key: String) -> String {
+        let bundleId = Bundle.main.bundleIdentifier!
+        return "\(bundleId)+\(key)"
+    }
+    
+    public static func setValue(_ value: String, forKey key: String) -> Bool {
+        return if KeychainUtility.getValue(forKey: key) != nil {
+            KeychainUtility.updateValue(value, forKey: key)
+        } else {
+            KeychainUtility.addValue(value, forKey: key)
+        }
+    }
+    
+    public static func remove(_ key: String) -> Bool {
+        
+        let bundleKey = KeychainUtility.getCompositeKey(key)
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrLabel as String: bundleKey,
+        ]
+        
+        return SecItemDelete(query as CFDictionary) == noErr
+    }
+    
+    public static func addValue(_ value: String, forKey key: String) -> Bool {
+        
+        let bundleKey = KeychainUtility.getCompositeKey(key)
+        let valueData = value.data(using: .utf8)!
+
+        let attributes: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrLabel as String: bundleKey,
+            kSecValueData as String: valueData,
+        ]
+        
+        return SecItemAdd(attributes as CFDictionary, nil) == noErr
+    }
+    
+    public static func updateValue(_ value: String, forKey key: String) -> Bool {
+        
+        let bundleKey = KeychainUtility.getCompositeKey(key)
+        let valueData = value.data(using: .utf8)!
+        let attributes: [String: Any] = [kSecValueData as String: valueData]
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrLabel as String: bundleKey,
+        ]
+        
+        return SecItemUpdate(query as CFDictionary, attributes as CFDictionary) == noErr
+    }
+    
+    public static func getValue(forKey key: String) -> String? {
+        
+        let bundleKey = KeychainUtility.getCompositeKey(key)
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrLabel as String: bundleKey,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true,
+        ]
+        
+        var item: CFTypeRef?
+        
+        if SecItemCopyMatching(query as CFDictionary, &item) != noErr {
+            return nil
+        }
+        
+        if let existingItem = item as? [String: Any],
+           let extractedBundleKey = existingItem[kSecAttrLabel as String] as? String,
+           let valueData = existingItem[kSecValueData as String] as? Data,
+           let value = String(data: valueData, encoding: .utf8),
+           extractedBundleKey == bundleKey
+        {
+            return value
+        }
+        
+        return nil
     }
 }
 
