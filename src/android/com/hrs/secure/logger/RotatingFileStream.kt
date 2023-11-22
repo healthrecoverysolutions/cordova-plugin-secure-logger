@@ -3,6 +3,7 @@ package com.hrs.secure.logger
 import android.content.Context
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
@@ -18,6 +19,44 @@ data class RotatingFileStreamOptions(
     var maxTotalCacheSizeBytes: Long = 7 * 1000 * 1000, // 8MB
     var maxFileCount: Long = 20
 )
+
+fun RotatingFileStreamOptions.tryUpdateMaxFileSizeBytes(value: Int): Boolean {
+	val min = 1000
+	val max = 4 * 1000 * 1000
+	val valid = value in min .. max
+	if (valid) maxFileSizeBytes = value.toLong()
+	return valid
+}
+
+fun RotatingFileStreamOptions.tryUpdateMaxTotalCacheSizeBytes(value: Int): Boolean {
+	val min = 1000
+	val max = 64 * 1000 * 1000
+	val valid = value in min .. max
+	if (valid) maxTotalCacheSizeBytes = value.toLong()
+	return valid
+}
+
+fun RotatingFileStreamOptions.tryUpdateMaxFileCount(value: Int): Boolean {
+	val min = 1
+	val max = 100
+	val valid = value in min .. max
+	if (valid) maxFileCount = value.toLong()
+	return valid
+}
+
+fun RotatingFileStreamOptions.fromJSON(value: JSONObject): RotatingFileStreamOptions {
+	tryUpdateMaxFileSizeBytes(value.optInt("maxFileSizeBytes"))
+	tryUpdateMaxTotalCacheSizeBytes(value.optInt("maxTotalCacheSizeBytes"))
+	tryUpdateMaxFileCount(value.optInt("maxFileCount"))
+	return this
+}
+
+fun RotatingFileStreamOptions.toJSON(): JSONObject {
+	return JSONObject()
+		.put("maxFileSizeBytes", maxFileSizeBytes)
+		.put("maxTotalCacheSizeBytes", maxTotalCacheSizeBytes)
+		.put("maxFileCount", maxFileCount)
+}
 
 fun RotatingFileStreamOptions.toDebugString(): String {
 	return "{ " +
@@ -54,7 +93,7 @@ class RotatingFileStream(
         get() = options.maxTotalCacheSizeBytes
 
 	var options: RotatingFileStreamOptions
-		get() = mOptions
+		get() = mOptions.copy()
 		set(value) {
 			synchronized(mLock) {
 				mOptions = value

@@ -6,10 +6,12 @@ import org.apache.cordova.CordovaPlugin
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
+import java.io.BufferedReader
 import java.io.File
 import java.lang.Thread.UncaughtExceptionHandler
 
 private const val LOG_DIR = "logs"
+private const val LOG_CONFIG_FILE = "logs-config.json"
 private const val ACTION_CAPTURE = "capture"
 private const val ACTION_CAPTURE_TEXT = "captureText"
 private const val ACTION_CLEAR_CACHE = "clearCache"
@@ -27,6 +29,7 @@ private const val CONFIG_KEY_MAX_FILE_COUNT = "maxFileCount"
 class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
     private lateinit var rotatingFileStream: RotatingFileStream
     private lateinit var timberFileProxy: TimberFileProxy
+	private lateinit var logsConfigFile: File
     private var defaultExceptionHandler: UncaughtExceptionHandler? = null
     private var timberDebug: Timber.DebugTree? = null
 
@@ -39,10 +42,12 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
         val logDir = File(cordova.context.cacheDir.path, LOG_DIR)
         val streamOptions = RotatingFileStreamOptions(logDir)
 
+		logsConfigFile = File(cordova.context.cacheDir.path, LOG_CONFIG_FILE)
         defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         rotatingFileStream = RotatingFileStream(cordova.context, streamOptions)
         timberFileProxy = TimberFileProxy(rotatingFileStream)
 
+		tryLoadStoredConfig()
         Timber.plant(timberFileProxy)
         Thread.setDefaultUncaughtExceptionHandler(this)
     }
@@ -151,17 +156,39 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
         }
     }
 
-	private fun toConfigError(key: String, error: String): JSONObject {
+	private fun intOutOfBoundsError(key: String): JSONObject {
 		return JSONObject()
 			.put(CONFIG_ERROR_KEY_OPTION, key)
-			.put(CONFIG_ERROR_KEY_ERROR, error)
+			.put(CONFIG_ERROR_KEY_ERROR, "value is outside of valid range")
+	}
+
+	private fun tryLoadStoredConfig() {
+		try {
+			val input = logsConfigFile.readText()
+			val json = JSONObject(input)
+			val storedOptions = rotatingFileStream.options.fromJSON(json)
+			rotatingFileStream.options = storedOptions
+		} catch (ex: Exception) {
+			Timber.w("failed to load stored config: ${ex.message}")
+		}
+	}
+
+	private fun trySaveCurrentConfig() {
+		try {
+			val output = rotatingFileStream.options.toJSON().toString()
+			logsConfigFile.writeText(output)
+		} catch (ex: Exception) {
+			Timber.w("failed to save current config: ${ex.message}")
+		}
 	}
 
     private fun applyConfigurationFromJson(config: JSONObject?): JSONObject {
 
 		val result = JSONObject()
 
-        if (config == null) return result.put(CONFIG_RESULT_KEY_SUCCESS, true)
+        if (config == null) {
+			return result.put(CONFIG_RESULT_KEY_SUCCESS, true)
+		}
 
 		val errors = mutableListOf<JSONObject>()
 
@@ -174,46 +201,28 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 
 		if (config.has(CONFIG_KEY_MAX_FILE_SIZE_BYTES)) {
 			val value = config.getInt(CONFIG_KEY_MAX_FILE_SIZE_BYTES)
-			val min = 1000
-			val max = 4 * 1000 * 1000
-			if (value in min .. max) {
-				updatedOptions.maxFileSizeBytes = value.toLong()
+			if (updatedOptions.tryUpdateMaxFileSizeBytes(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(toConfigError(
-					CONFIG_KEY_MAX_FILE_SIZE_BYTES,
-					"must be in range [$min, $max]"
-				))
+				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_FILE_SIZE_BYTES))
 			}
 		}
 
 		if (config.has(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES)) {
 			val value = config.getInt(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES)
-			val min = 1000
-			val max = 64 * 1000 * 1000
-			if (value in min .. max) {
-				updatedOptions.maxTotalCacheSizeBytes = value.toLong()
+			if (updatedOptions.tryUpdateMaxTotalCacheSizeBytes(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(toConfigError(
-					CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES,
-					"must be in range [$min, $max]"
-				))
+				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES))
 			}
 		}
 
 		if (config.has(CONFIG_KEY_MAX_FILE_COUNT)) {
 			val value = config.getInt(CONFIG_KEY_MAX_FILE_COUNT)
-			val min = 1
-			val max = 100
-			if (value in min .. max) {
-				updatedOptions.maxFileCount = value.toLong()
+			if (updatedOptions.tryUpdateMaxFileCount(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(toConfigError(
-					CONFIG_KEY_MAX_FILE_COUNT,
-					"must be in range [$min, $max]"
-				))
+				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_FILE_COUNT))
 			}
 		}
 
@@ -221,6 +230,7 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 			rotatingFileStream.options = updatedOptions
 			val optionsDump = rotatingFileStream.options.toDebugString()
 			Timber.i("file stream reconfigured with new options: $optionsDump")
+			trySaveCurrentConfig()
 		}
 
 		result.put(CONFIG_RESULT_KEY_SUCCESS, errors.isEmpty())
