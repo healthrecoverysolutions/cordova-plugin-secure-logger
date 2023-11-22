@@ -219,6 +219,8 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 
 		if (didUpdateOptions) {
 			rotatingFileStream.options = updatedOptions
+			val optionsDump = rotatingFileStream.options.toDebugString()
+			Timber.i("file stream reconfigured with new options: $optionsDump")
 		}
 
 		result.put(CONFIG_RESULT_KEY_SUCCESS, errors.isEmpty())

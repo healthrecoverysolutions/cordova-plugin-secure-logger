@@ -19,9 +19,17 @@ data class RotatingFileStreamOptions(
     var maxFileCount: Long = 20
 )
 
+fun RotatingFileStreamOptions.toDebugString(): String {
+	return "{ " +
+		"maxFileSizeBytes = $maxFileSizeBytes" +
+		", maxTotalCacheSizeBytes = $maxTotalCacheSizeBytes" +
+		", maxFileCount = $maxFileCount" +
+		" }"
+}
+
 class RotatingFileStream(
     private val mContext: Context,
-    var options: RotatingFileStreamOptions
+    private var mOptions: RotatingFileStreamOptions
 ) {
     private val mLock = Any()
 
@@ -44,6 +52,14 @@ class RotatingFileStream(
 
     private val maxCacheSize: Long
         get() = options.maxTotalCacheSizeBytes
+
+	var options: RotatingFileStreamOptions
+		get() = mOptions
+		set(value) {
+			synchronized(mLock) {
+				mOptions = value
+			}
+		}
 
     fun destroy() {
         mDestroyed = true
