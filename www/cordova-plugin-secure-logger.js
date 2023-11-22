@@ -83,4 +83,7 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
     return SecureLoggerCordovaInterface;
 }());
 exports.SecureLoggerCordovaInterface = SecureLoggerCordovaInterface;
+/**
+ * Singleton reference to interact with this cordova plugin
+ */
 exports.SecureLogger = new SecureLoggerCordovaInterface();

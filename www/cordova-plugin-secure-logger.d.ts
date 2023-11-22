@@ -1,3 +1,7 @@
+/**
+ * Values to indicate the level of an event.
+ * mirrors levels found in android.util.Log to minimize plugin friction.
+ */
 export declare const enum SecureLogLevel {
     VERBOSE = 2,
     DEBUG = 3,
@@ -7,9 +11,21 @@ export declare const enum SecureLogLevel {
     FATAL = 7
 }
 export interface SecureLogEvent {
+    /**
+     * EPOCH-based timestamp, e.g. Date.now()
+     */
     timestamp: number;
+    /**
+     * Priority level of this event
+     */
     level: SecureLogLevel;
+    /**
+     * Scope indicating what module the event came from
+     */
     tag: string;
+    /**
+     * Description of what happened when the event occurred
+     */
     message: string;
 }
 export interface ConfigureOptions {
@@ -93,4 +109,7 @@ export declare class SecureLoggerCordovaInterface {
      */
     configure(options: ConfigureOptions): Promise<ConfigureResult>;
 }
+/**
+ * Singleton reference to interact with this cordova plugin
+ */
 export declare const SecureLogger: SecureLoggerCordovaInterface;
