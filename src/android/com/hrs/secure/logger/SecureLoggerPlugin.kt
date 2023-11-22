@@ -6,7 +6,6 @@ import org.apache.cordova.CordovaPlugin
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
-import java.io.BufferedReader
 import java.io.File
 import java.lang.Thread.UncaughtExceptionHandler
 
@@ -22,9 +21,6 @@ private const val CONFIG_RESULT_KEY_ERRORS = "errors"
 private const val CONFIG_ERROR_KEY_OPTION = "option"
 private const val CONFIG_ERROR_KEY_ERROR = "error"
 private const val CONFIG_KEY_MIN_LEVEL = "minLevel"
-private const val CONFIG_KEY_MAX_FILE_SIZE_BYTES = "maxFileSizeBytes"
-private const val CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES = "maxTotalCacheSizeBytes"
-private const val CONFIG_KEY_MAX_FILE_COUNT = "maxFileCount"
 
 class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
     private lateinit var rotatingFileStream: RotatingFileStream
@@ -169,7 +165,10 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 			val json = JSONObject(input)
 			val storedOptions = rotatingFileStream.options.fromJSON(json)
 			rotatingFileStream.options = storedOptions
-			timberFileProxy.minLevel = json.optInt(CONFIG_KEY_MIN_LEVEL)
+
+			if (json.has(CONFIG_KEY_MIN_LEVEL)) {
+				timberFileProxy.minLevel = json.optInt(CONFIG_KEY_MIN_LEVEL)
+			}
 		} catch (ex: Exception) {
 			Timber.w("failed to load stored config: ${ex.message}")
 		}
@@ -200,38 +199,38 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 			timberFileProxy.minLevel = config.getInt(CONFIG_KEY_MIN_LEVEL)
 		}
 
-		val updatedOptions = rotatingFileStream.options.copy()
+		val streamOptions = rotatingFileStream.options
 		var didUpdateOptions = false
 
-		if (config.has(CONFIG_KEY_MAX_FILE_SIZE_BYTES)) {
-			val value = config.getInt(CONFIG_KEY_MAX_FILE_SIZE_BYTES)
-			if (updatedOptions.tryUpdateMaxFileSizeBytes(value)) {
+		if (config.has(KEY_MAX_FILE_SIZE_BYTES)) {
+			val value = config.getInt(KEY_MAX_FILE_SIZE_BYTES)
+			if (streamOptions.tryUpdateMaxFileSizeBytes(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_FILE_SIZE_BYTES))
+				errors.add(intOutOfBoundsError(KEY_MAX_FILE_SIZE_BYTES))
 			}
 		}
 
-		if (config.has(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES)) {
-			val value = config.getInt(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES)
-			if (updatedOptions.tryUpdateMaxTotalCacheSizeBytes(value)) {
+		if (config.has(KEY_MAX_TOTAL_CACHE_SIZE_BYTES)) {
+			val value = config.getInt(KEY_MAX_TOTAL_CACHE_SIZE_BYTES)
+			if (streamOptions.tryUpdateMaxTotalCacheSizeBytes(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_TOTAL_CACHE_SIZE_BYTES))
+				errors.add(intOutOfBoundsError(KEY_MAX_TOTAL_CACHE_SIZE_BYTES))
 			}
 		}
 
-		if (config.has(CONFIG_KEY_MAX_FILE_COUNT)) {
-			val value = config.getInt(CONFIG_KEY_MAX_FILE_COUNT)
-			if (updatedOptions.tryUpdateMaxFileCount(value)) {
+		if (config.has(KEY_MAX_FILE_COUNT)) {
+			val value = config.getInt(KEY_MAX_FILE_COUNT)
+			if (streamOptions.tryUpdateMaxFileCount(value)) {
 				didUpdateOptions = true
 			} else {
-				errors.add(intOutOfBoundsError(CONFIG_KEY_MAX_FILE_COUNT))
+				errors.add(intOutOfBoundsError(KEY_MAX_FILE_COUNT))
 			}
 		}
 
 		if (didUpdateOptions) {
-			rotatingFileStream.options = updatedOptions
+			rotatingFileStream.options = streamOptions
 			val optionsDump = rotatingFileStream.options.toDebugString()
 			Timber.i("file stream reconfigured with new options: $optionsDump")
 			trySaveCurrentConfig()

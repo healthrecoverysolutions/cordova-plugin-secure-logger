@@ -9,6 +9,10 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 
+const val KEY_MAX_FILE_SIZE_BYTES = "maxFileSizeBytes"
+const val KEY_MAX_TOTAL_CACHE_SIZE_BYTES = "maxTotalCacheSizeBytes"
+const val KEY_MAX_FILE_COUNT = "maxFileCount"
+
 private const val LOG_FILE_NAME_PREFIX = "SCR-LOG-V"
 private const val LOG_FILE_NAME_EXTENSION = ".log"
 private const val RFS_SERIALIZER_VERSION = 1
@@ -45,17 +49,17 @@ fun RotatingFileStreamOptions.tryUpdateMaxFileCount(value: Int): Boolean {
 }
 
 fun RotatingFileStreamOptions.fromJSON(value: JSONObject): RotatingFileStreamOptions {
-	tryUpdateMaxFileSizeBytes(value.optInt("maxFileSizeBytes"))
-	tryUpdateMaxTotalCacheSizeBytes(value.optInt("maxTotalCacheSizeBytes"))
-	tryUpdateMaxFileCount(value.optInt("maxFileCount"))
+	tryUpdateMaxFileSizeBytes(value.optInt(KEY_MAX_FILE_SIZE_BYTES))
+	tryUpdateMaxTotalCacheSizeBytes(value.optInt(KEY_MAX_TOTAL_CACHE_SIZE_BYTES))
+	tryUpdateMaxFileCount(value.optInt(KEY_MAX_FILE_COUNT))
 	return this
 }
 
 fun RotatingFileStreamOptions.toJSON(): JSONObject {
 	return JSONObject()
-		.put("maxFileSizeBytes", maxFileSizeBytes)
-		.put("maxTotalCacheSizeBytes", maxTotalCacheSizeBytes)
-		.put("maxFileCount", maxFileCount)
+		.put(KEY_MAX_FILE_SIZE_BYTES, maxFileSizeBytes)
+		.put(KEY_MAX_TOTAL_CACHE_SIZE_BYTES, maxTotalCacheSizeBytes)
+		.put(KEY_MAX_FILE_COUNT, maxFileCount)
 }
 
 fun RotatingFileStreamOptions.toDebugString(): String {
@@ -93,7 +97,11 @@ class RotatingFileStream(
         get() = options.maxTotalCacheSizeBytes
 
 	var options: RotatingFileStreamOptions
-		get() = mOptions.copy()
+		get() {
+			synchronized(mLock) {
+				return mOptions.copy()
+			}
+		}
 		set(value) {
 			synchronized(mLock) {
 				mOptions = value
