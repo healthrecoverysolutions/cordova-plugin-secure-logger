@@ -219,14 +219,23 @@ extension DDLogMessage {
     }
 }
 
+private let KEY_WEB_EVENT_LEVEL = "level"
+private let KEY_WEB_EVENT_TIMESTAMP = "timestamp"
+private let KEY_WEB_EVENT_TAG = "tag"
+private let KEY_WEB_EVENT_MESSAGE = "message"
+
 extension [String: Any] {
+    
+    func getWebEventLevel() -> Int? {
+        return self[KEY_WEB_EVENT_LEVEL] as? Int
+    }
 
     func asSerializedWebEvent() -> String {
         
-        let timestamp = self["timestamp"] as? Int ?? Date.nowMilliseconds
-        let level = self["level"] as? Int ?? LogLevel.DEBUG.rawValue
-        let tag = self["tag"] as? String ?? "NO_TAG"
-        let message = self["message"] as? String ?? "<MISSING_MESSAGE>"
+        let timestamp = self[KEY_WEB_EVENT_TIMESTAMP] as? Int ?? Date.nowMilliseconds
+        let level = self.getWebEventLevel() ?? LogLevel.DEBUG.rawValue
+        let tag = self[KEY_WEB_EVENT_TAG] as? String ?? "NO_TAG"
+        let message = self[KEY_WEB_EVENT_MESSAGE] as? String ?? "<MISSING_MESSAGE>"
         let timestampString = Date.from(epoch: timestamp).toISOString()
         let levelString = level.toLogLevel().toString()
         

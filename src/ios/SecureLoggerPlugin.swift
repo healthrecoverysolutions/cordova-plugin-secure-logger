@@ -132,8 +132,10 @@ public class SecureLoggerPlugin : CDVPlugin {
     private func captureLogEvents(_ eventList: [[String: Any]]) {
         for logEvent in eventList {
             do {
-                let logLine = logEvent.asSerializedWebEvent()
-                try fileStream.appendLine(logLine)
+                if let level = logEvent.getWebEventLevel(), level >= lumberjackProxy.minLevelInt {
+                    let logLine = logEvent.asSerializedWebEvent()
+                    try fileStream.appendLine(logLine)
+                }
             } catch {
                 print("Failed to capture webview event in log file!")
             }
