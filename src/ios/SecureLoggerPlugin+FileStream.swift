@@ -31,7 +31,7 @@ public class SecureLoggerFileStreamOptions {
         let min = 1000
         let max = 4 * 1000 * 1000
         let valid = (min...max).contains(value)
-        if (valid) {
+        if valid {
             mMaxFileSizeBytes = UInt64(value)
         }
         return valid
@@ -42,7 +42,7 @@ public class SecureLoggerFileStreamOptions {
         let min = 1000
         let max = 64 * 1000 * 1000
         let valid = (min...max).contains(value)
-        if (valid) {
+        if valid {
             mMaxTotalCacheSizeBytes = UInt64(value)
         }
         return valid
@@ -53,7 +53,7 @@ public class SecureLoggerFileStreamOptions {
         let min = 1
         let max = 100
         let valid = (min...max).contains(value)
-        if (valid) {
+        if valid {
             mMaxFileCount = value
         }
         return valid
@@ -115,7 +115,12 @@ public class SecureLoggerFileStream {
     }
     
     public var options: SecureLoggerFileStreamOptions {
-        get { self._options.copy() }
+        get {
+            self.mutex.lock()
+            let result = self._options.copy()
+            self.mutex.unlock()
+            return result
+        }
         set {
             self.mutex.lock()
             self._options = newValue

@@ -159,8 +159,9 @@ public class SecureLoggerPlugin : CDVPlugin {
         fileStream.options = storedOptions
 
         if let minLevelInt = input[CONFIG_KEY_MIN_LEVEL] as? Int {
-            DDLogDebug("updating minLevel to \(minLevelInt) (from storage)")
+            print("updating minLevel to \(minLevelInt) (from storage)")
             lumberjackProxy.minLevelInt = minLevelInt
+            print("minLevel set to \(lumberjackProxy.minLevelInt)")
         }
     }
     
@@ -185,13 +186,14 @@ public class SecureLoggerPlugin : CDVPlugin {
          if let minLevelInt = config[CONFIG_KEY_MIN_LEVEL] as? Int {
              print("update minLevel = \(minLevelInt)")
              lumberjackProxy.minLevelInt = minLevelInt
+             print("minLevel set to \(lumberjackProxy.minLevelInt)")
          }
 
-         let updatedOptions = fileStream.options
+         let streamOptions = fileStream.options
          var didUpdateOptions = false
 
          if let maxFileSizeBytes = config[KEY_MAX_FILE_SIZE_BYTES] as? Int {
-             if (updatedOptions.tryUpdateMaxFileSizeBytes(maxFileSizeBytes)) {
+             if streamOptions.tryUpdateMaxFileSizeBytes(maxFileSizeBytes) {
                  print("update maxFileSizeBytes = \(maxFileSizeBytes)")
                  didUpdateOptions = true
              } else {
@@ -200,7 +202,7 @@ public class SecureLoggerPlugin : CDVPlugin {
          }
         
         if let maxTotalCacheSizeBytes = config[KEY_MAX_TOTAL_CACHE_SIZE_BYTES] as? Int {
-            if (updatedOptions.tryUpdateMaxTotalCacheSizeBytes(maxTotalCacheSizeBytes)) {
+            if streamOptions.tryUpdateMaxTotalCacheSizeBytes(maxTotalCacheSizeBytes) {
                 print("update maxTotalCacheSizeBytes = \(maxTotalCacheSizeBytes)")
                 didUpdateOptions = true
             } else {
@@ -209,7 +211,7 @@ public class SecureLoggerPlugin : CDVPlugin {
         }
         
         if let maxFileCount = config[KEY_MAX_FILE_COUNT] as? Int {
-            if (updatedOptions.tryUpdateMaxFileCount(maxFileCount)) {
+            if streamOptions.tryUpdateMaxFileCount(maxFileCount) {
                 print("update maxFileCount = \(maxFileCount)")
                 didUpdateOptions = true
             } else {
@@ -218,8 +220,11 @@ public class SecureLoggerPlugin : CDVPlugin {
         }
 
         if didUpdateOptions {
-            fileStream.options = updatedOptions
+            fileStream.options = streamOptions
+            let originDump = streamOptions.toDebugString()
             let optionsDump = fileStream.options.toDebugString()
+            print("from options: \(originDump)")
+            print("  to options: \(optionsDump)")
             DDLogInfo("file stream reconfigured with new options: \(optionsDump)")
             trySaveCurrentConfig()
         }
