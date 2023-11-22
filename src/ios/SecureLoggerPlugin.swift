@@ -1,12 +1,16 @@
 import Foundation
 import CocoaLumberjack
 
+let LOG_DIR = "logs"
+let LOG_CONFIG_FILE = "logs-config.json"
+let CONFIG_RESULT_KEY_SUCCESS = "success"
+let CONFIG_RESULT_KEY_ERRORS = "errors"
+let CONFIG_ERROR_KEY_OPTION = "option"
+let CONFIG_ERROR_KEY_ERROR = "error"
+let CONFIG_KEY_MIN_LEVEL = "minLevel"
+
 @objc(SecureLoggerPlugin)
 public class SecureLoggerPlugin : CDVPlugin {
-    private static let LOG_DIR = "logs"
-    private static let LOG_CONFIG_FILE = "logs-config.json"
-    private static let CONFIG_KEY_MIN_LEVEL = "minLevel"
-
     private var logsConfigFile: URL!
     private var fileStream: SecureLoggerFileStream!
     private var lumberjackProxy: SecureLoggerLumberjackFileProxy!
@@ -22,12 +26,12 @@ public class SecureLoggerPlugin : CDVPlugin {
             appRootCacheDirectory = appRootCacheDirectory.appendingPathComponent(appBundleId)
         }
         
-        let logsDirectory = appRootCacheDirectory.appendingPathComponent(SecureLoggerPlugin.LOG_DIR)
+        let logsDirectory = appRootCacheDirectory.appendingPathComponent(LOG_DIR)
         print("using log directory \(logsDirectory)")
     
         let streamOptions = SecureLoggerFileStreamOptions()
 
-        self.logsConfigFile = appRootCacheDirectory.appendingPathComponent(SecureLoggerPlugin.LOG_CONFIG_FILE)
+        self.logsConfigFile = appRootCacheDirectory.appendingPathComponent(LOG_CONFIG_FILE)
         self.fileStream = SecureLoggerFileStream(logsDirectory, options: streamOptions)
         self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
         
@@ -46,7 +50,7 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(capture:)
     func capture(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            if let eventList = command.arguments[0] as? [NSDictionary] {
+            if let eventList = command.arguments[0] as? [[String: Any]] {
                 self.captureLogEvents(eventList)
                 self.sendOk(command.callbackId)
             } else {
@@ -96,8 +100,12 @@ public class SecureLoggerPlugin : CDVPlugin {
     @objc(configure:)
     func configure(command: CDVInvokedUrlCommand) {
         DispatchQueue.main.async(flags: .barrier) {
-            print("TODO: configure()")
-            self.sendOk(command.callbackId)
+            if let configRequest = command.arguments[0] as? [String: Any] {
+                let result = self.applyConfigurationFromJson(configRequest)
+                self.sendOkJson(command.callbackId, result)
+            } else {
+                self.sendError(command.callbackId, "input must be an object")
+            }
         }
     }
 
@@ -111,12 +119,17 @@ public class SecureLoggerPlugin : CDVPlugin {
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
     }
     
+    private func sendOkJson(_ callbackId: String, _ obj: [String: Any]) {
+        let pluginResult = CDVPluginResult(status: .ok, messageAs: obj)
+        self.commandDelegate.send(pluginResult, callbackId: callbackId)
+    }
+    
     private func sendError(_ callbackId: String, _ message: String? = nil) {
         let pluginResult = CDVPluginResult(status: .error, messageAs: message)
         self.commandDelegate.send(pluginResult, callbackId: callbackId)
     }
 
-    private func captureLogEvents(_ eventList: [NSDictionary]) {
+    private func captureLogEvents(_ eventList: [[String: Any]]) {
         for logEvent in eventList {
             do {
                 let logLine = logEvent.asSerializedWebEvent()
@@ -129,7 +142,7 @@ public class SecureLoggerPlugin : CDVPlugin {
     
     private func trySaveCurrentConfig() {
         var output = fileStream.options.toJSON()
-        output[SecureLoggerPlugin.CONFIG_KEY_MIN_LEVEL] = lumberjackProxy.minLevelInt
+        output[CONFIG_KEY_MIN_LEVEL] = lumberjackProxy.minLevelInt
         
         if !logsConfigFile.writeJson(output) {
             DDLogWarn("failed to save current config")
@@ -144,10 +157,76 @@ public class SecureLoggerPlugin : CDVPlugin {
         
         let storedOptions = fileStream.options.fromJSON(input)
         fileStream.options = storedOptions
-        
-        if let minLevelInt = input[SecureLoggerPlugin.CONFIG_KEY_MIN_LEVEL] as? Int {
+
+        if let minLevelInt = input[CONFIG_KEY_MIN_LEVEL] as? Int {
             DDLogDebug("updating minLevel to \(minLevelInt) (from storage)")
             lumberjackProxy.minLevelInt = minLevelInt
         }
     }
+    
+    private func intOutOfBoundsError(_ key: String) -> [String: Any] {
+        return [
+            CONFIG_ERROR_KEY_OPTION: key,
+            CONFIG_ERROR_KEY_ERROR: "value is outside of valid range"
+        ]
+    }
+
+    private func applyConfigurationFromJson(_ webviewArg: [String: Any]?) -> [String: Any] {
+
+        var result: [String: Any] = [:]
+        
+        guard let config = webviewArg else {
+            result[CONFIG_RESULT_KEY_SUCCESS] = true
+            return result
+        }
+
+         var errors = Array<[String: Any]>()
+
+         if let minLevelInt = config[CONFIG_KEY_MIN_LEVEL] as? Int {
+             print("update minLevel = \(minLevelInt)")
+             lumberjackProxy.minLevelInt = minLevelInt
+         }
+
+         let updatedOptions = fileStream.options
+         var didUpdateOptions = false
+
+         if let maxFileSizeBytes = config[KEY_MAX_FILE_SIZE_BYTES] as? Int {
+             if (updatedOptions.tryUpdateMaxFileSizeBytes(maxFileSizeBytes)) {
+                 print("update maxFileSizeBytes = \(maxFileSizeBytes)")
+                 didUpdateOptions = true
+             } else {
+                 errors.append(intOutOfBoundsError(KEY_MAX_FILE_SIZE_BYTES))
+             }
+         }
+        
+        if let maxTotalCacheSizeBytes = config[KEY_MAX_TOTAL_CACHE_SIZE_BYTES] as? Int {
+            if (updatedOptions.tryUpdateMaxTotalCacheSizeBytes(maxTotalCacheSizeBytes)) {
+                print("update maxTotalCacheSizeBytes = \(maxTotalCacheSizeBytes)")
+                didUpdateOptions = true
+            } else {
+                errors.append(intOutOfBoundsError(KEY_MAX_TOTAL_CACHE_SIZE_BYTES))
+            }
+        }
+        
+        if let maxFileCount = config[KEY_MAX_FILE_COUNT] as? Int {
+            if (updatedOptions.tryUpdateMaxFileCount(maxFileCount)) {
+                print("update maxFileCount = \(maxFileCount)")
+                didUpdateOptions = true
+            } else {
+                errors.append(intOutOfBoundsError(KEY_MAX_FILE_COUNT))
+            }
+        }
+
+        if didUpdateOptions {
+            fileStream.options = updatedOptions
+            let optionsDump = fileStream.options.toDebugString()
+            DDLogInfo("file stream reconfigured with new options: \(optionsDump)")
+            trySaveCurrentConfig()
+        }
+        
+        result[CONFIG_RESULT_KEY_SUCCESS] = errors.count <= 0
+        result[CONFIG_RESULT_KEY_ERRORS] = errors
+
+        return result
+     }
 }

@@ -1,11 +1,15 @@
 import Foundation
 import IDZSwiftCommonCrypto
 
+public let KEY_MAX_FILE_SIZE_BYTES = "maxFileSizeBytes"
+public let KEY_MAX_TOTAL_CACHE_SIZE_BYTES = "maxTotalCacheSizeBytes"
+public let KEY_MAX_FILE_COUNT = "maxFileCount"
+
+private let LOG_FILE_NAME_PREFIX = "SCR-LOG-V"
+private let LOG_FILE_NAME_EXTENSION = ".log"
+private let RFS_SERIALIZER_VERSION = 1
+
 public class SecureLoggerFileStreamOptions {
-    private static let KEY_MAX_FILE_SIZE_BYTES = "maxFileSizeBytes"
-    private static let KEY_MAX_TOTAL_CACHE_SIZE_BYTES = "maxTotalCacheSizeBytes"
-    private static let KEY_MAX_FILE_COUNT = "maxFileCount"
-    
     private var mMaxFileSizeBytes: UInt64 = 2 * 1000 * 1000 // 2MB
     private var mMaxTotalCacheSizeBytes: UInt64 = 7 * 1000 * 1000 // 8MB
     private var mMaxFileCount: Int = 20
@@ -16,9 +20,9 @@ public class SecureLoggerFileStreamOptions {
     
     public func copy() -> SecureLoggerFileStreamOptions {
         let result = SecureLoggerFileStreamOptions()
-        result.tryUpdateMaxFileSizeBytes(Int(maxFileSizeBytes))
-        result.tryUpdateMaxTotalCacheSizeBytes(Int(maxTotalCacheSizeBytes))
-        result.tryUpdateMaxFileCount(maxFileCount)
+        result.mMaxFileSizeBytes = mMaxFileSizeBytes
+        result.mMaxTotalCacheSizeBytes = mMaxTotalCacheSizeBytes
+        result.mMaxFileCount = mMaxFileCount
         return result
     }
     
@@ -57,21 +61,21 @@ public class SecureLoggerFileStreamOptions {
     
     public func toJSON() -> [String: Any] {
         return [
-            SecureLoggerFileStreamOptions.KEY_MAX_FILE_SIZE_BYTES: maxFileSizeBytes,
-            SecureLoggerFileStreamOptions.KEY_MAX_TOTAL_CACHE_SIZE_BYTES: maxTotalCacheSizeBytes,
-            SecureLoggerFileStreamOptions.KEY_MAX_FILE_COUNT: maxFileCount
+            KEY_MAX_FILE_SIZE_BYTES: maxFileSizeBytes,
+            KEY_MAX_TOTAL_CACHE_SIZE_BYTES: maxTotalCacheSizeBytes,
+            KEY_MAX_FILE_COUNT: maxFileCount
         ]
     }
 
     public func fromJSON(_ value: [String: Any]) -> SecureLoggerFileStreamOptions {
-        if let maxFileSize = value[SecureLoggerFileStreamOptions.KEY_MAX_FILE_SIZE_BYTES] {
-            tryUpdateMaxFileSizeBytes(maxFileSize as! Int)
+        if let maxFileSize = value[KEY_MAX_FILE_SIZE_BYTES] as? Int {
+            tryUpdateMaxFileSizeBytes(maxFileSize)
         }
-        if let maxCacheSize = value[SecureLoggerFileStreamOptions.KEY_MAX_TOTAL_CACHE_SIZE_BYTES] {
-            tryUpdateMaxTotalCacheSizeBytes(maxCacheSize as! Int)
+        if let maxCacheSize = value[KEY_MAX_TOTAL_CACHE_SIZE_BYTES] as? Int {
+            tryUpdateMaxTotalCacheSizeBytes(maxCacheSize)
         }
-        if let maxFileCount = value[SecureLoggerFileStreamOptions.KEY_MAX_FILE_COUNT] {
-            tryUpdateMaxFileCount(maxFileCount as! Int)
+        if let maxFileCount = value[KEY_MAX_FILE_COUNT] as? Int {
+            tryUpdateMaxFileCount(maxFileCount)
         }
         return self
     }
@@ -86,18 +90,13 @@ public class SecureLoggerFileStreamOptions {
 }
 
 public class SecureLoggerFileStream {
-    
-    private static let LOG_FILE_NAME_PREFIX = "SCR-LOG-V"
-    private static let LOG_FILE_NAME_EXTENSION = ".log"
-    private static let RFS_SERIALIZER_VERSION = 1
-    
     private let outputDirectory: URL
     private var _options: SecureLoggerFileStreamOptions
     private let mutex = NSLock()
     private var destroyed = false
     private var activeFilePath: URL?
-    private var activeStream: OutputStreamLike?
-    
+    private var activeStream: CipherOutputStream?
+
     init(_ outputDirectory: URL, options: SecureLoggerFileStreamOptions) {
         self.outputDirectory = outputDirectory
         self._options = options
@@ -205,8 +204,8 @@ public class SecureLoggerFileStream {
         
         return resultBytes
     }
-    
-    private static func generateArchiveFileName() -> String {
+
+    private func generateArchiveFileName() -> String {
         // Generates a unique name like "SCR-LOG-V1-1698079640670.log"
         return "\(LOG_FILE_NAME_PREFIX)\(RFS_SERIALIZER_VERSION)-\(Date.nowMilliseconds)\(LOG_FILE_NAME_EXTENSION)"
     }
@@ -215,8 +214,8 @@ public class SecureLoggerFileStream {
         let comparisonResult = a.lastPathComponent.localizedStandardCompare(b.lastPathComponent)
         return comparisonResult == ComparisonResult.orderedAscending
     }
-    
-    private func openReadStream(_ filePath: URL) throws -> InputStreamLike {
+
+    private func openReadStream(_ filePath: URL) throws -> CipherInputStream {
         let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = AESEncryptedFile(filePath, password: password)
@@ -225,7 +224,7 @@ public class SecureLoggerFileStream {
         return inputStream;
     }
 
-    private func openWriteStream(_ filePath: URL) throws -> OutputStreamLike {
+    private func openWriteStream(_ filePath: URL) throws -> CipherOutputStream {
         let startTime = Date.nowMilliseconds
         let password = try CryptoUtility.deriveStreamPassword(filePath.lastPathComponent)
         let encryptedFile = AESEncryptedFile(filePath, password: password)
@@ -235,14 +234,15 @@ public class SecureLoggerFileStream {
     }
 
     private func closeActiveStream() {
-        if (activeStream != nil) {
-            activeStream!.close()
+        if let stream = activeStream {
+            stream.close()
             activeStream = nil
         }
     }
 
     private func loadActiveStream() throws -> OutputStreamLike? {
         if activeStream != nil
+            && !activeStream!.hasCipherUpdateFailure
             && activeFilePath != nil
             && activeFilePath!.fileOrDirectoryExists()
             && activeFilePath!.fileLength() < maxFileSize {
@@ -257,7 +257,7 @@ public class SecureLoggerFileStream {
     private func createNewStream() throws -> OutputStreamLike? {
         closeActiveStream()
 
-        let nextFileName = SecureLoggerFileStream.generateArchiveFileName()
+        let nextFileName = self.generateArchiveFileName()
         activeFilePath = outputDirectory.appendingPathComponent(nextFileName)
 
         if activeFilePath!.fileOrDirectoryExists() {

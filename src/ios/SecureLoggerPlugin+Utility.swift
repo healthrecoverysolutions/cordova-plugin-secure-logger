@@ -210,7 +210,7 @@ extension DDLogMessage {
     }
 }
 
-extension NSDictionary {
+extension [String: Any] {
 
     func asSerializedWebEvent() -> String {
         
