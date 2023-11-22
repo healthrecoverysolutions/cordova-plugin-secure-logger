@@ -27,7 +27,7 @@ public class CryptoUtility {
     }
     
     private static func loadLoggerIdentifier() throws -> String {
-        
+
         let key = "loggerId"
         
         if let identifier = KeychainUtility.getValue(forKey: key) {
@@ -47,9 +47,12 @@ public class CryptoUtility {
 
 public class KeychainUtility {
     
-    private static func getCompositeKey(_ key: String) -> String {
-        let bundleId = Bundle.main.bundleIdentifier!
-        return "\(bundleId)+\(key)"
+    private static func getCompositeKey(_ key: String) -> String? {
+        return if let bundleId = Bundle.main.bundleIdentifier {
+            "\(bundleId)+\(key)"
+        } else {
+            nil
+        }
     }
     
     public static func setValue(_ value: String, forKey key: String) -> Bool {
@@ -61,8 +64,9 @@ public class KeychainUtility {
     }
     
     public static func remove(_ key: String) -> Bool {
-        
-        let bundleKey = KeychainUtility.getCompositeKey(key)
+        guard let bundleKey = KeychainUtility.getCompositeKey(key) else {
+            return false
+        }
         
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
@@ -73,8 +77,10 @@ public class KeychainUtility {
     }
     
     public static func addValue(_ value: String, forKey key: String) -> Bool {
-        
-        let bundleKey = KeychainUtility.getCompositeKey(key)
+        guard let bundleKey = KeychainUtility.getCompositeKey(key) else {
+            return false
+        }
+
         let valueData = value.data(using: .utf8)!
 
         let attributes: [String: Any] = [
@@ -87,8 +93,10 @@ public class KeychainUtility {
     }
     
     public static func updateValue(_ value: String, forKey key: String) -> Bool {
+        guard let bundleKey = KeychainUtility.getCompositeKey(key) else {
+            return false
+        }
         
-        let bundleKey = KeychainUtility.getCompositeKey(key)
         let valueData = value.data(using: .utf8)!
         let attributes: [String: Any] = [kSecValueData as String: valueData]
         
@@ -101,9 +109,10 @@ public class KeychainUtility {
     }
     
     public static func getValue(forKey key: String) -> String? {
-        
-        let bundleKey = KeychainUtility.getCompositeKey(key)
-        
+        guard let bundleKey = KeychainUtility.getCompositeKey(key) else {
+            return nil
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrLabel as String: bundleKey,

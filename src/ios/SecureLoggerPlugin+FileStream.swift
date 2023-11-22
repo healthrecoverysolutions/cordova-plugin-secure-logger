@@ -84,7 +84,7 @@ public class SecureLoggerFileStreamOptions {
         return "{ " +
             "maxFileSizeBytes = \(maxFileSizeBytes)" +
             ", maxTotalCacheSizeBytes = \(maxTotalCacheSizeBytes)" +
-            ", maxFileCount = $\(maxFileCount)" +
+            ", maxFileCount = \(maxFileCount)" +
             " }"
     }
 }
