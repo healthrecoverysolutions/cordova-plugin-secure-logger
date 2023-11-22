@@ -1,36 +1,118 @@
 import Foundation
 import IDZSwiftCommonCrypto
 
-// Generlized encrypted rotating file stream implementation
+public class SecureLoggerFileStreamOptions {
+    private static let KEY_MAX_FILE_SIZE_BYTES = "maxFileSizeBytes"
+    private static let KEY_MAX_TOTAL_CACHE_SIZE_BYTES = "maxTotalCacheSizeBytes"
+    private static let KEY_MAX_FILE_COUNT = "maxFileCount"
+    
+    private var mMaxFileSizeBytes: UInt64 = 2 * 1000 * 1000 // 2MB
+    private var mMaxTotalCacheSizeBytes: UInt64 = 7 * 1000 * 1000 // 8MB
+    private var mMaxFileCount: Int = 20
+    
+    public var maxFileSizeBytes: UInt64 { mMaxFileSizeBytes }
+    public var maxTotalCacheSizeBytes: UInt64 { mMaxTotalCacheSizeBytes }
+    public var maxFileCount: Int { mMaxFileCount }
+    
+    public func copy() -> SecureLoggerFileStreamOptions {
+        let result = SecureLoggerFileStreamOptions()
+        result.tryUpdateMaxFileSizeBytes(Int(maxFileSizeBytes))
+        result.tryUpdateMaxTotalCacheSizeBytes(Int(maxTotalCacheSizeBytes))
+        result.tryUpdateMaxFileCount(maxFileCount)
+        return result
+    }
+    
+    @discardableResult
+    public func tryUpdateMaxFileSizeBytes(_ value: Int) -> Bool {
+        let min = 1000
+        let max = 4 * 1000 * 1000
+        let valid = (min...max).contains(value)
+        if (valid) {
+            mMaxFileSizeBytes = UInt64(value)
+        }
+        return valid
+    }
+    
+    @discardableResult
+    public func tryUpdateMaxTotalCacheSizeBytes(_ value: Int) -> Bool {
+        let min = 1000
+        let max = 64 * 1000 * 1000
+        let valid = (min...max).contains(value)
+        if (valid) {
+            mMaxTotalCacheSizeBytes = UInt64(value)
+        }
+        return valid
+    }
+    
+    @discardableResult
+    public func tryUpdateMaxFileCount(_ value: Int) -> Bool {
+        let min = 1
+        let max = 100
+        let valid = (min...max).contains(value)
+        if (valid) {
+            mMaxFileCount = value
+        }
+        return valid
+    }
+    
+    public func toJSON() -> [String: Any] {
+        return [
+            SecureLoggerFileStreamOptions.KEY_MAX_FILE_SIZE_BYTES: maxFileSizeBytes,
+            SecureLoggerFileStreamOptions.KEY_MAX_TOTAL_CACHE_SIZE_BYTES: maxTotalCacheSizeBytes,
+            SecureLoggerFileStreamOptions.KEY_MAX_FILE_COUNT: maxFileCount
+        ]
+    }
+
+    public func fromJSON(_ value: [String: Any]) -> SecureLoggerFileStreamOptions {
+        if let maxFileSize = value[SecureLoggerFileStreamOptions.KEY_MAX_FILE_SIZE_BYTES] {
+            tryUpdateMaxFileSizeBytes(maxFileSize as! Int)
+        }
+        if let maxCacheSize = value[SecureLoggerFileStreamOptions.KEY_MAX_TOTAL_CACHE_SIZE_BYTES] {
+            tryUpdateMaxTotalCacheSizeBytes(maxCacheSize as! Int)
+        }
+        if let maxFileCount = value[SecureLoggerFileStreamOptions.KEY_MAX_FILE_COUNT] {
+            tryUpdateMaxFileCount(maxFileCount as! Int)
+        }
+        return self
+    }
+
+    public func toDebugString() -> String {
+        return "{ " +
+            "maxFileSizeBytes = \(maxFileSizeBytes)" +
+            ", maxTotalCacheSizeBytes = \(maxTotalCacheSizeBytes)" +
+            ", maxFileCount = $\(maxFileCount)" +
+            " }"
+    }
+}
+
 public class SecureLoggerFileStream {
     
     private static let LOG_FILE_NAME_PREFIX = "SCR-LOG-V"
     private static let LOG_FILE_NAME_EXTENSION = ".log"
     private static let RFS_SERIALIZER_VERSION = 1
-    private static let MAX_FILE_SIZE_BYTES: UInt64 = 2 * 1000 * 1000 // 2MB
-    private static let MAX_TOTAL_CACHE_SIZE_BYTES: UInt64 = 7 * 1000 * 1000 // 8MB
-    private static let MAX_FILE_COUNT = 20
     
     private let outputDirectory: URL
+    private let options: SecureLoggerFileStreamOptions
     private let mutex = NSLock()
     private var destroyed = false
     private var activeFilePath: URL?
     private var activeStream: OutputStreamLike?
     
-    init(_ outputDirectory: URL) {
+    init(_ outputDirectory: URL, options: SecureLoggerFileStreamOptions) {
         self.outputDirectory = outputDirectory
+        self.options = options
     }
 
     private var maxFileSize: UInt64 {
-        return SecureLoggerFileStream.MAX_FILE_SIZE_BYTES
+        return self.options.maxFileSizeBytes
     }
     
     private var maxCacheSize: UInt64 {
-        return SecureLoggerFileStream.MAX_TOTAL_CACHE_SIZE_BYTES
+        return self.options.maxTotalCacheSizeBytes
     }
     
     private var maxFileCount: Int {
-        return SecureLoggerFileStream.MAX_FILE_COUNT
+        return self.options.maxFileCount
     }
     
     func destroy() {

@@ -3,7 +3,7 @@ import Security
 import CocoaLumberjack
 import IDZSwiftCommonCrypto
 
-enum LogLevel : Int {
+public enum LogLevel : Int {
     case VERBOSE = 2
     case DEBUG = 3
     case INFO = 4

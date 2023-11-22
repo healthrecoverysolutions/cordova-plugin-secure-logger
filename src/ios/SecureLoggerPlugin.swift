@@ -21,7 +21,8 @@ public class SecureLoggerPlugin : CDVPlugin {
         let logsDirectory = appRootCacheDirectory.appendingPathComponent("logs")
         print("using log directory \(logsDirectory)")
     
-        self.fileStream = SecureLoggerFileStream(logsDirectory)
+        let streamOptions = SecureLoggerFileStreamOptions()
+        self.fileStream = SecureLoggerFileStream(logsDirectory, options: streamOptions)
         self.lumberjackProxy = SecureLoggerLumberjackFileProxy(self.fileStream!)
         
         DDLog.add(self.lumberjackProxy!)
