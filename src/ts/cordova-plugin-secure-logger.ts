@@ -27,7 +27,10 @@ function cordovaExecPromise<T>(plugin: string, method: string, args?: any[]): Pr
 
 const SECURE_LOGGER_PLUGIN = 'SecureLoggerPlugin';
 
-// mirrors levels found in android.util.Log
+/**
+ * Values to indicate the level of an event.
+ * mirrors levels found in android.util.Log to minimize plugin friction.
+ */
 export const enum SecureLogLevel {
     VERBOSE = 2,
     DEBUG = 3,
@@ -38,9 +41,25 @@ export const enum SecureLogLevel {
 }
 
 export interface SecureLogEvent {
-    timestamp: number; // EPOCH-based timestamp, e.g. Date.now()
+
+    /**
+     * EPOCH-based timestamp, e.g. Date.now()
+     */
+    timestamp: number;
+
+    /**
+     * Priority level of this event
+     */
     level: SecureLogLevel;
+
+    /**
+     * Scope indicating what module the event came from
+     */
     tag: string;
+
+    /**
+     * Description of what happened when the event occurred
+     */
     message: string;
 }
 
@@ -173,4 +192,7 @@ export class SecureLoggerCordovaInterface {
     }
 }
 
+/**
+ * Singleton reference to interact with this cordova plugin
+ */
 export const SecureLogger = new SecureLoggerCordovaInterface();
