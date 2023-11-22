@@ -34,6 +34,16 @@ fun currentTimeMillis(): Long {
     return Date().time
 }
 
+fun clampInt(value: Int, min: Int, max: Int): Int {
+	if (value < min) return min
+	if (value > max) return max
+	return value
+}
+
+fun clampLogLevel(level: Int): Int {
+	return clampInt(level, Log.VERBOSE, Log.ASSERT)
+}
+
 fun serializeLogLevel(priority: Int): String {
     return when (priority) {
         Log.VERBOSE -> PRIORITY_VERBOSE

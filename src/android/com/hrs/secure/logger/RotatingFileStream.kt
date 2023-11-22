@@ -21,7 +21,7 @@ data class RotatingFileStreamOptions(
 
 class RotatingFileStream(
     private val mContext: Context,
-    private val mOptions: RotatingFileStreamOptions
+    var options: RotatingFileStreamOptions
 ) {
     private val mLock = Any()
 
@@ -34,16 +34,16 @@ class RotatingFileStream(
     private var mDestroyed: Boolean = false
 
     private val output: File
-        get() = mOptions.outputDir
+        get() = options.outputDir
 
     private val maxFileSize: Long
-        get() = mOptions.maxFileSizeBytes
+        get() = options.maxFileSizeBytes
 
     private val maxFileCount: Long
-        get() = mOptions.maxFileCount
+        get() = options.maxFileCount
 
     private val maxCacheSize: Long
-        get() = mOptions.maxTotalCacheSizeBytes
+        get() = options.maxTotalCacheSizeBytes
 
     fun destroy() {
         mDestroyed = true
@@ -91,7 +91,7 @@ class RotatingFileStream(
         synchronized(mLock) {
 
             if (mDestroyed) {
-                return null;
+                return null
             }
 
             // Data at the end of the file will be partially corrupted if
