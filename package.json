@@ -3,6 +3,8 @@
   "version": "1.0.2",
   "description": "cordova plugin for securely writing logs to local app cache",
   "main": "www/cordova-plugin-secure-logger.js",
+  "types": "www/cordova-plugin-secure-logger.d.ts",
+  "typings": "www/cordova-plugin-secure-logger.d.ts",
   "scripts": {
     "build": "rm -rf ./www/* && tsc",
     "docs": "typedoc ./src/ts/cordova-plugin-secure-logger.ts --out ./docs",
