@@ -151,6 +151,7 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 
         for (i in 0 until events.length()) {
             val ev: JSONObject = events.optJSONObject(i) ?: continue
+			if (getWebEventLevel(ev) < timberFileProxy.minLevel) continue
             val text = serializeWebEventFromJSON(ev)
             rotatingFileStream.appendLine(text)
         }
@@ -168,6 +169,7 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 			val json = JSONObject(input)
 			val storedOptions = rotatingFileStream.options.fromJSON(json)
 			rotatingFileStream.options = storedOptions
+			timberFileProxy.minLevel = json.optInt(CONFIG_KEY_MIN_LEVEL)
 		} catch (ex: Exception) {
 			Timber.w("failed to load stored config: ${ex.message}")
 		}
@@ -175,7 +177,9 @@ class SecureLoggerPlugin : CordovaPlugin(), UncaughtExceptionHandler {
 
 	private fun trySaveCurrentConfig() {
 		try {
-			val output = rotatingFileStream.options.toJSON().toString()
+			val outputJson = rotatingFileStream.options.toJSON()
+			outputJson.put(CONFIG_KEY_MIN_LEVEL, timberFileProxy.minLevel)
+			val output = outputJson.toString()
 			logsConfigFile.writeText(output)
 		} catch (ex: Exception) {
 			Timber.w("failed to save current config: ${ex.message}")

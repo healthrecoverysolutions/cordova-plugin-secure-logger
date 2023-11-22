@@ -67,10 +67,14 @@ fun serializeWebEvent(timestampMillis: Long, level: Int, tag: String, message: S
     return "$timestamp [${serializeLogLevel(level)}] [webview-$tag] $message"
 }
 
+fun getWebEventLevel(obj: JSONObject): Int {
+	return obj.optInt("level", Log.DEBUG)
+}
+
 fun serializeWebEventFromJSON(obj: JSONObject): String {
 
     var timestamp = obj.optLong("timestamp", -1)
-    val level = obj.optInt("level", Log.DEBUG)
+    val level = getWebEventLevel(obj)
     val tag = obj.optString("tag", NO_TAG)
     val message = obj.optString("message", MISSING_MESSAGE)
 
