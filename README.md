@@ -111,7 +111,7 @@ You can use [@obsidize/rx-console](https://www.npmjs.com/package/@obsidize/rx-co
 ```typescript
 /* logger-bootstrap.ts */
 import { getPrimaryLoggerTransport, Logger, LogEvent } from '@obsidize/rx-console';
-import { SecureLogger, SecureLogEvent, SecureLogLevel } from 'cordova-plugin-secure-logger';
+import { SecureLogger, SecureLogLevel } from 'cordova-plugin-secure-logger';
 
 const primaryTransport = getPrimaryLoggerTransport();
 const mainLogger = new Logger('Main');
