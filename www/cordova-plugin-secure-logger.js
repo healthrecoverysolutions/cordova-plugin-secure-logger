@@ -57,7 +57,9 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
         this.mEventCache = [];
         this.mCacheFlushInterval = null;
         this.mMaxCachedEvents = 1000;
-        this.setEventCacheFlushInterval(1000);
+        // start caching events immediately so we don't
+        // drop any while cordova is still standing plugins up
+        this.setEventCacheFlushInterval();
     }
     Object.defineProperty(SecureLoggerCordovaInterface.prototype, "maxCachedEvents", {
         /**
@@ -123,7 +125,22 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
         })
             .catch(this.eventFlushErrorCallback);
     };
-    SecureLoggerCordovaInterface.prototype.cancelEventCacheFlushInterval = function () {
+    /**
+     * Completely disables event caching on this
+     * interface, and clears any buffered events.
+     * **NOTE**: convenience methods that use `log()` will
+     * do nothing until caching is turned back on.
+     */
+    SecureLoggerCordovaInterface.prototype.disableEventCaching = function () {
+        this.clearEventCacheFlushInterval();
+        this.mEventCache = [];
+    };
+    /**
+     * Stops the internal flush interval.
+     * **NOTE**: convenience methods that use `log()` will
+     * do nothing until the flush interval is turned back on.
+     */
+    SecureLoggerCordovaInterface.prototype.clearEventCacheFlushInterval = function () {
         if (this.mCacheFlushInterval) {
             clearInterval(this.mCacheFlushInterval);
         }
@@ -135,8 +152,11 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
      * Default flush interval is 1000 milliseconds.
      */
     SecureLoggerCordovaInterface.prototype.setEventCacheFlushInterval = function (intervalMs) {
-        this.cancelEventCacheFlushInterval();
+        if (intervalMs === void 0) { intervalMs = 1000; }
+        this.clearEventCacheFlushInterval();
         this.mCacheFlushInterval = setInterval(this.flushEventCacheProxy, intervalMs);
+        // flush immediately when this is updated
+        this.onFlushEventCache();
     };
     /**
      * Adds the given event to the event cache,

@@ -125,13 +125,25 @@ export declare class SecureLoggerCordovaInterface {
      */
     configure(options: ConfigureOptions): Promise<ConfigureResult>;
     private onFlushEventCache;
-    cancelEventCacheFlushInterval(): void;
+    /**
+     * Completely disables event caching on this
+     * interface, and clears any buffered events.
+     * **NOTE**: convenience methods that use `log()` will
+     * do nothing until caching is turned back on.
+     */
+    disableEventCaching(): void;
+    /**
+     * Stops the internal flush interval.
+     * **NOTE**: convenience methods that use `log()` will
+     * do nothing until the flush interval is turned back on.
+     */
+    clearEventCacheFlushInterval(): void;
     /**
      * Sets the interval at which cached events will be flushed
      * and sent to the native logging system.
      * Default flush interval is 1000 milliseconds.
      */
-    setEventCacheFlushInterval(intervalMs: number): void;
+    setEventCacheFlushInterval(intervalMs?: number): void;
     /**
      * Adds the given event to the event cache,
      * which will be flushed on a fixed interval.
