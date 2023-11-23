@@ -156,6 +156,10 @@ function normalizeConfigureResult(value: Partial<ConfigureResult>): ConfigureRes
     return value as ConfigureResult;
 }
 
+function unwrapConfigureResult(value: ConfigureResult): Promise<ConfigureResult> {
+    return (value && value.success) ? Promise.resolve(value) : Promise.reject(value);
+}
+
 export class SecureLoggerCordovaInterface {
 
     /**
@@ -164,6 +168,7 @@ export class SecureLoggerCordovaInterface {
     public eventFlushErrorCallback: (error: any) => void = noop;
 
     private readonly flushEventCacheProxy = this.onFlushEventCache.bind(this);
+    private readonly flushEventCacheSuccessProxy = this.onFlushEventCacheSuccess.bind(this);
     private mEventCache: SecureLogEvent[] = [];
     private mCacheFlushInterval: any = null;
     private mMaxCachedEvents: number = 1000;
@@ -227,18 +232,7 @@ export class SecureLoggerCordovaInterface {
     public configure(options: ConfigureOptions): Promise<ConfigureResult> {
         return invoke<Partial<ConfigureResult>>('configure', options)
             .then(normalizeConfigureResult)
-            .then(result => result.success ? result : Promise.reject(result));
-    }
-
-    private onFlushEventCache(): void {
-        if (this.mEventCache.length <= 0) {
-            return;
-        }
-        this.capture(this.mEventCache)
-            .then(() => {
-                this.mEventCache = [];
-            })
-            .catch(this.eventFlushErrorCallback);
+            .then(unwrapConfigureResult);
     }
 
     /**
@@ -347,6 +341,19 @@ export class SecureLoggerCordovaInterface {
      */
     public trace(tag: string, message: string, timestamp?: number): void {
         this.verbose(tag, message, timestamp);
+    }
+
+    private onFlushEventCacheSuccess(): void {
+        this.mEventCache = [];
+    }
+
+    private onFlushEventCache(): void {
+        if (this.mEventCache.length <= 0) {
+            return;
+        }
+        this.capture(this.mEventCache)
+            .then(this.flushEventCacheSuccessProxy)
+            .catch(this.eventFlushErrorCallback);
     }
 }
 

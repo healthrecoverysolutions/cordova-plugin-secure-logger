@@ -47,6 +47,9 @@ function normalizeConfigureResult(value) {
     }
     return value;
 }
+function unwrapConfigureResult(value) {
+    return (value && value.success) ? Promise.resolve(value) : Promise.reject(value);
+}
 var SecureLoggerCordovaInterface = /** @class */ (function () {
     function SecureLoggerCordovaInterface() {
         /**
@@ -54,6 +57,7 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
          */
         this.eventFlushErrorCallback = noop;
         this.flushEventCacheProxy = this.onFlushEventCache.bind(this);
+        this.flushEventCacheSuccessProxy = this.onFlushEventCacheSuccess.bind(this);
         this.mEventCache = [];
         this.mCacheFlushInterval = null;
         this.mMaxCachedEvents = 1000;
@@ -112,18 +116,7 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
     SecureLoggerCordovaInterface.prototype.configure = function (options) {
         return invoke('configure', options)
             .then(normalizeConfigureResult)
-            .then(function (result) { return result.success ? result : Promise.reject(result); });
-    };
-    SecureLoggerCordovaInterface.prototype.onFlushEventCache = function () {
-        var _this = this;
-        if (this.mEventCache.length <= 0) {
-            return;
-        }
-        this.capture(this.mEventCache)
-            .then(function () {
-            _this.mEventCache = [];
-        })
-            .catch(this.eventFlushErrorCallback);
+            .then(unwrapConfigureResult);
     };
     /**
      * Completely disables event caching on this
@@ -219,6 +212,17 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
      */
     SecureLoggerCordovaInterface.prototype.trace = function (tag, message, timestamp) {
         this.verbose(tag, message, timestamp);
+    };
+    SecureLoggerCordovaInterface.prototype.onFlushEventCacheSuccess = function () {
+        this.mEventCache = [];
+    };
+    SecureLoggerCordovaInterface.prototype.onFlushEventCache = function () {
+        if (this.mEventCache.length <= 0) {
+            return;
+        }
+        this.capture(this.mEventCache)
+            .then(this.flushEventCacheSuccessProxy)
+            .catch(this.eventFlushErrorCallback);
     };
     return SecureLoggerCordovaInterface;
 }());

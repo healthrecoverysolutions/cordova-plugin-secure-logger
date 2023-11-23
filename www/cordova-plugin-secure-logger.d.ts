@@ -87,6 +87,7 @@ export declare class SecureLoggerCordovaInterface {
      */
     eventFlushErrorCallback: (error: any) => void;
     private readonly flushEventCacheProxy;
+    private readonly flushEventCacheSuccessProxy;
     private mEventCache;
     private mCacheFlushInterval;
     private mMaxCachedEvents;
@@ -124,7 +125,6 @@ export declare class SecureLoggerCordovaInterface {
      * Customize how this plugin should operate.
      */
     configure(options: ConfigureOptions): Promise<ConfigureResult>;
-    private onFlushEventCache;
     /**
      * Completely disables event caching on this
      * interface, and clears any buffered events.
@@ -184,6 +184,8 @@ export declare class SecureLoggerCordovaInterface {
      * Alias of `verbose()`
      */
     trace(tag: string, message: string, timestamp?: number): void;
+    private onFlushEventCacheSuccess;
+    private onFlushEventCache;
 }
 /**
  * Singleton reference to interact with this cordova plugin
