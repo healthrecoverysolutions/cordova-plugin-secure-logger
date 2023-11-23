@@ -45,21 +45,28 @@ You can produce logs for this plugin on both the webview and native side like so
 - TypeScript / JavaScript:
 
 ```typescript
-import { SecureLogger, SecureLogLevel } from 'cordova-plugin-secure-logger';
+import { SecureLogger } from 'cordova-plugin-secure-logger';
 
-function log(tag: string, message: string): Promise<void> {
-    return SecureLogger.capture([
-        {
-            timestamp: Date.now(),
-            level: SecureLogLevel.DEBUG,
-            tag,
-            message
-        }
-    ]);
+const tag = `ExampleService`;
+
+class ExampleService {
+
+    public test(): void {
+        SecureLogger.debug(tag, `This will be stored in an encrypted log file`);
+    }
+
+    public someOperation(): void {
+        const result = JSON.stringify({error: `transfunctioner stopped combobulating`});
+        SecureLogger.warn(tag, `Something bad happened! -> ${result}`);
+    }
 }
 
-log(`This will be stored in an encrypted log file`);
-log(`Something interesting happened! -> ${JSON.stringify({error: `transfunctioner stopped combobulating`})}`)
+const service = new ExampleService();
+
+// log events will automatically get buffered and 
+// sent to the plugin on a fixed interval
+service.test();
+service.someOperation();
 ```
 
 - Android:
@@ -90,10 +97,10 @@ To grab a snapshot of the current log cache:
 import { SecureLogger } from 'cordova-plugin-secure-logger';
 
 async function uploadLogs(): Promise<void> {
-    const logCacheData = await SecureLogger.getCacheBlob();
+    const logCacheData: ArrayBuffer = await SecureLogger.getCacheBlob();
     const bodyBlob = new Blob([logCacheData]);
     // upload / share it somewhere
-    http.post('/log-capture', bodyBlob).then(...)
+    await http.post('/log-capture', bodyBlob)
 }
 ```
 
@@ -109,8 +116,6 @@ import { SecureLogger, SecureLogEvent, SecureLogLevel } from 'cordova-plugin-sec
 const primaryTransport = getPrimaryLoggerTransport();
 const mainLogger = new Logger('Main');
 
-let eventCache: SecureLogEvent[] = [];
-
 function remapLogLevel(level: number): SecureLogLevel {
     switch (level) {
         case LogLevel.VERBOSE:  return SecureLogLevel.VERBOSE;
@@ -124,41 +129,20 @@ function remapLogLevel(level: number): SecureLogLevel {
     }
 }
 
-function convertLogEventToNative(ev: LogEvent): SecureLogEvent {
-    return {
+function captureRxConsoleEvent(ev: LogEvent): void {
+    SecureLogger.queueEvent({
         level: remapLogLevel(ev.level),
         timestamp: ev.timestamp,
         tag: ev.tag,
         message: ev.message
-    };
-}
-
-async function flushEventCache() {
-    if (!eventCache || eventCache.length <= 0) {
-        return;
-    }
-
-    await SecureLogger.capture(eventCache).catch((e) => {
-        mainLogger.error(`failed to capture logs!`, e);
     });
-
-    eventCache = [];
 }
 
-function captureEvent(ev: LogEvent) {
-    eventCache.push(convertLogEventToNative(ev));
-}
+primaryTransport
+    .disableEventCaching()
+    .enableDefaultBroadcast()
+    .events()
+    .addListener(captureRxConsoleEvent);
 
-function setupNativeProxy(flushIntervalMs: number) {
-    primaryTransport
-        .disableEventCaching()
-        .enableDefaultBroadcast()
-        .events()
-        .addListener(captureEvent);
-
-    setInterval(flushEventCache, flushIntervalMs);
-}
-
-setupNativeProxy(5000);
 mainLogger.debug(`webview-to-native logging is initialized!`);
 ```

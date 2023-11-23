@@ -83,6 +83,22 @@ export interface ConfigureResult {
 }
 export declare class SecureLoggerCordovaInterface {
     /**
+     * Customizable callback to handle when event cache flush fails.
+     */
+    eventFlushErrorCallback: (error: any) => void;
+    private readonly flushEventCacheProxy;
+    private mEventCache;
+    private mCacheFlushInterval;
+    private mMaxCachedEvents;
+    constructor();
+    /**
+     * Maximum events allowed to be cached before
+     * automatic pruning takes effect.
+     * See `log()` for more info.
+     */
+    get maxCachedEvents(): number;
+    set maxCachedEvents(value: number);
+    /**
      * Uses native-level formatting, and automatically inserts
      * newlines between events when writing formatted content to
      * the log cache.
@@ -108,6 +124,54 @@ export declare class SecureLoggerCordovaInterface {
      * Customize how this plugin should operate.
      */
     configure(options: ConfigureOptions): Promise<ConfigureResult>;
+    private onFlushEventCache;
+    cancelEventCacheFlushInterval(): void;
+    /**
+     * Sets the interval at which cached events will be flushed
+     * and sent to the native logging system.
+     * Default flush interval is 1000 milliseconds.
+     */
+    setEventCacheFlushInterval(intervalMs: number): void;
+    /**
+     * Adds the given event to the event cache,
+     * which will be flushed on a fixed interval.
+     */
+    queueEvent(ev: SecureLogEvent): void;
+    /**
+     * Generates a log event that will be cached for the next
+     * event flush cycle, where all cached events will be handed to the plugin.
+     * If this would cause the cache to become larger than `maxCachedEvents`,
+     * the oldest item from the cache is removed after this new event is added.
+     */
+    log(level: SecureLogLevel, tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of VERBOSE
+     */
+    verbose(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    debug(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    info(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of WARN
+     */
+    warn(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of ERROR
+     */
+    error(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Queues a new log event with the given data and level of FATAL
+     */
+    fatal(tag: string, message: string, timestamp?: number): void;
+    /**
+     * Alias of `verbose()`
+     */
+    trace(tag: string, message: string, timestamp?: number): void;
 }
 /**
  * Singleton reference to interact with this cordova plugin

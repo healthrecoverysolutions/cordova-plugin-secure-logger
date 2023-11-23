@@ -1,5 +1,9 @@
+////////////////////////////////////////////////////////////////
+// Generic Cordova Utilities
+////////////////////////////////////////////////////////////////
+
 type SuccessCallback<TValue> = (value: TValue) => void;
-type ErrorCallback = (message: string) => void;
+type ErrorCallback = (error: any) => void;
 
 function noop() {
     return;
@@ -22,10 +26,20 @@ function cordovaExec<T>(
 }
 
 function cordovaExecPromise<T>(plugin: string, method: string, args?: any[]): Promise<T> {
-    return new Promise<T>((resolve, reject) => cordovaExec<T>(plugin, method, resolve, reject, args));
+    return new Promise<T>((resolve, reject) => {
+        cordovaExec<T>(plugin, method, resolve, reject, args);
+    });
 }
 
-const SECURE_LOGGER_PLUGIN = 'SecureLoggerPlugin';
+////////////////////////////////////////////////////////////////
+// Plugin Interface
+////////////////////////////////////////////////////////////////
+
+const PLUGIN_NAME = 'SecureLoggerPlugin';
+
+function invoke<T>(method: string, ...args: any[]): Promise<T> {
+    return cordovaExecPromise<T>(PLUGIN_NAME, method, args);
+}
 
 /**
  * Values to indicate the level of an event.
@@ -125,10 +139,6 @@ export interface ConfigureResult {
     errors?: ConfigureOptionError[];
 }
 
-function invokePlugin<T>(method: string, ...args: any[]): Promise<T> {
-    return cordovaExecPromise<T>(SECURE_LOGGER_PLUGIN, method, args);
-}
-
 function normalizeConfigureResult(value: Partial<ConfigureResult>): ConfigureResult {
 
     if (!value) {
@@ -149,12 +159,39 @@ function normalizeConfigureResult(value: Partial<ConfigureResult>): ConfigureRes
 export class SecureLoggerCordovaInterface {
 
     /**
+     * Customizable callback to handle when event cache flush fails.
+     */
+    public eventFlushErrorCallback: (error: any) => void = noop;
+
+    private readonly flushEventCacheProxy = this.onFlushEventCache.bind(this);
+    private mEventCache: SecureLogEvent[] = [];
+    private mCacheFlushInterval: any = null;
+    private mMaxCachedEvents: number = 1000;
+
+    constructor() {
+        this.setEventCacheFlushInterval(1000);
+    }
+
+    /**
+     * Maximum events allowed to be cached before
+     * automatic pruning takes effect.
+     * See `log()` for more info.
+     */
+    public get maxCachedEvents(): number {
+        return this.mMaxCachedEvents;
+    }
+
+    public set maxCachedEvents(value: number) {
+        this.mMaxCachedEvents = Math.max(1, Math.floor(value));
+    }
+
+    /**
      * Uses native-level formatting, and automatically inserts
      * newlines between events when writing formatted content to
      * the log cache.
      */
     public capture(events: SecureLogEvent[]): Promise<void> {
-        return invokePlugin('capture', events);
+        return invoke('capture', events);
     }
 
     /**
@@ -162,7 +199,7 @@ export class SecureLoggerCordovaInterface {
      * without any preprocessing.
      */
     public captureText(text: string): Promise<void> {
-        return invokePlugin('captureText', text);
+        return invoke('captureText', text);
     }
 
     /**
@@ -170,7 +207,7 @@ export class SecureLoggerCordovaInterface {
      * Cannot be undone, use with caution.
      */
     public clearCache(): Promise<void> {
-        return invokePlugin('clearCache');
+        return invoke('clearCache');
     }
 
     /**
@@ -179,16 +216,117 @@ export class SecureLoggerCordovaInterface {
      * together chronologically.
      */
     public getCacheBlob(): Promise<ArrayBuffer> {
-        return invokePlugin('getCacheBlob');
+        return invoke('getCacheBlob');
     }
 
     /**
      * Customize how this plugin should operate.
      */
     public configure(options: ConfigureOptions): Promise<ConfigureResult> {
-        return invokePlugin<Partial<ConfigureResult>>('configure', options)
+        return invoke<Partial<ConfigureResult>>('configure', options)
             .then(normalizeConfigureResult)
             .then(result => result.success ? result : Promise.reject(result));
+    }
+
+    private onFlushEventCache(): void {
+        if (this.mEventCache.length <= 0) {
+            return;
+        }
+        this.capture(this.mEventCache)
+            .then(() => {
+                this.mEventCache = [];
+            })
+            .catch(this.eventFlushErrorCallback);
+    }
+
+    public cancelEventCacheFlushInterval(): void {
+        if (this.mCacheFlushInterval) {
+            clearInterval(this.mCacheFlushInterval);
+        }
+        this.mCacheFlushInterval = null;
+    }
+
+    /**
+     * Sets the interval at which cached events will be flushed
+     * and sent to the native logging system.
+     * Default flush interval is 1000 milliseconds.
+     */
+    public setEventCacheFlushInterval(intervalMs: number): void {
+        this.cancelEventCacheFlushInterval();
+        this.mCacheFlushInterval = setInterval(
+            this.flushEventCacheProxy, 
+            intervalMs
+        );
+    }
+
+    /**
+     * Adds the given event to the event cache,
+     * which will be flushed on a fixed interval.
+     */
+    public queueEvent(ev: SecureLogEvent): void {
+        this.mEventCache.push(ev);
+        if (this.mEventCache.length > this.maxCachedEvents) {
+            this.mEventCache.shift();
+        }
+    }
+
+    /**
+     * Generates a log event that will be cached for the next
+     * event flush cycle, where all cached events will be handed to the plugin.
+     * If this would cause the cache to become larger than `maxCachedEvents`,
+     * the oldest item from the cache is removed after this new event is added.
+     */
+    public log(level: SecureLogLevel, tag: string, message: string, timestamp: number = Date.now()): void {
+        this.queueEvent({level, tag, message, timestamp});
+    }
+
+    /**
+     * Queues a new log event with the given data and level of VERBOSE
+     */
+    public verbose(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.VERBOSE, tag, message, timestamp);
+    }
+
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    public debug(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.DEBUG, tag, message, timestamp);
+    }
+
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    public info(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.INFO, tag, message, timestamp);
+    }
+
+    /**
+     * Queues a new log event with the given data and level of WARN
+     */
+    public warn(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.WARN, tag, message, timestamp);
+    }
+
+    /**
+     * Queues a new log event with the given data and level of ERROR
+     */
+    public error(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.ERROR, tag, message, timestamp);
+    }
+
+    /**
+     * Queues a new log event with the given data and level of FATAL
+     */
+    public fatal(tag: string, message: string, timestamp?: number): void {
+        this.log(SecureLogLevel.FATAL, tag, message, timestamp);
+    }
+
+    /**
+     * Alias of `verbose()`
+     */
+    public trace(tag: string, message: string, timestamp?: number): void {
+        this.verbose(tag, message, timestamp);
     }
 }
 

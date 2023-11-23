@@ -1,4 +1,7 @@
 "use strict";
+////////////////////////////////////////////////////////////////
+// Generic Cordova Utilities
+////////////////////////////////////////////////////////////////
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SecureLogger = exports.SecureLoggerCordovaInterface = void 0;
 function noop() {
@@ -17,15 +20,20 @@ function cordovaExec(plugin, method, successCallback, errorCallback, args) {
     }
 }
 function cordovaExecPromise(plugin, method, args) {
-    return new Promise(function (resolve, reject) { return cordovaExec(plugin, method, resolve, reject, args); });
+    return new Promise(function (resolve, reject) {
+        cordovaExec(plugin, method, resolve, reject, args);
+    });
 }
-var SECURE_LOGGER_PLUGIN = 'SecureLoggerPlugin';
-function invokePlugin(method) {
+////////////////////////////////////////////////////////////////
+// Plugin Interface
+////////////////////////////////////////////////////////////////
+var PLUGIN_NAME = 'SecureLoggerPlugin';
+function invoke(method) {
     var args = [];
     for (var _i = 1; _i < arguments.length; _i++) {
         args[_i - 1] = arguments[_i];
     }
-    return cordovaExecPromise(SECURE_LOGGER_PLUGIN, method, args);
+    return cordovaExecPromise(PLUGIN_NAME, method, args);
 }
 function normalizeConfigureResult(value) {
     if (!value) {
@@ -41,28 +49,52 @@ function normalizeConfigureResult(value) {
 }
 var SecureLoggerCordovaInterface = /** @class */ (function () {
     function SecureLoggerCordovaInterface() {
+        /**
+         * Customizable callback to handle when event cache flush fails.
+         */
+        this.eventFlushErrorCallback = noop;
+        this.flushEventCacheProxy = this.onFlushEventCache.bind(this);
+        this.mEventCache = [];
+        this.mCacheFlushInterval = null;
+        this.mMaxCachedEvents = 1000;
+        this.setEventCacheFlushInterval(1000);
     }
+    Object.defineProperty(SecureLoggerCordovaInterface.prototype, "maxCachedEvents", {
+        /**
+         * Maximum events allowed to be cached before
+         * automatic pruning takes effect.
+         * See `log()` for more info.
+         */
+        get: function () {
+            return this.mMaxCachedEvents;
+        },
+        set: function (value) {
+            this.mMaxCachedEvents = Math.max(1, Math.floor(value));
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * Uses native-level formatting, and automatically inserts
      * newlines between events when writing formatted content to
      * the log cache.
      */
     SecureLoggerCordovaInterface.prototype.capture = function (events) {
-        return invokePlugin('capture', events);
+        return invoke('capture', events);
     };
     /**
      * Writes the given text directly to the log cache
      * without any preprocessing.
      */
     SecureLoggerCordovaInterface.prototype.captureText = function (text) {
-        return invokePlugin('captureText', text);
+        return invoke('captureText', text);
     };
     /**
      * Deletes all logging cache files.
      * Cannot be undone, use with caution.
      */
     SecureLoggerCordovaInterface.prototype.clearCache = function () {
-        return invokePlugin('clearCache');
+        return invoke('clearCache');
     };
     /**
      * Retrieves a single blob of log data which
@@ -70,15 +102,103 @@ var SecureLoggerCordovaInterface = /** @class */ (function () {
      * together chronologically.
      */
     SecureLoggerCordovaInterface.prototype.getCacheBlob = function () {
-        return invokePlugin('getCacheBlob');
+        return invoke('getCacheBlob');
     };
     /**
      * Customize how this plugin should operate.
      */
     SecureLoggerCordovaInterface.prototype.configure = function (options) {
-        return invokePlugin('configure', options)
+        return invoke('configure', options)
             .then(normalizeConfigureResult)
             .then(function (result) { return result.success ? result : Promise.reject(result); });
+    };
+    SecureLoggerCordovaInterface.prototype.onFlushEventCache = function () {
+        var _this = this;
+        if (this.mEventCache.length <= 0) {
+            return;
+        }
+        this.capture(this.mEventCache)
+            .then(function () {
+            _this.mEventCache = [];
+        })
+            .catch(this.eventFlushErrorCallback);
+    };
+    SecureLoggerCordovaInterface.prototype.cancelEventCacheFlushInterval = function () {
+        if (this.mCacheFlushInterval) {
+            clearInterval(this.mCacheFlushInterval);
+        }
+        this.mCacheFlushInterval = null;
+    };
+    /**
+     * Sets the interval at which cached events will be flushed
+     * and sent to the native logging system.
+     * Default flush interval is 1000 milliseconds.
+     */
+    SecureLoggerCordovaInterface.prototype.setEventCacheFlushInterval = function (intervalMs) {
+        this.cancelEventCacheFlushInterval();
+        this.mCacheFlushInterval = setInterval(this.flushEventCacheProxy, intervalMs);
+    };
+    /**
+     * Adds the given event to the event cache,
+     * which will be flushed on a fixed interval.
+     */
+    SecureLoggerCordovaInterface.prototype.queueEvent = function (ev) {
+        this.mEventCache.push(ev);
+        if (this.mEventCache.length > this.maxCachedEvents) {
+            this.mEventCache.shift();
+        }
+    };
+    /**
+     * Generates a log event that will be cached for the next
+     * event flush cycle, where all cached events will be handed to the plugin.
+     * If this would cause the cache to become larger than `maxCachedEvents`,
+     * the oldest item from the cache is removed after this new event is added.
+     */
+    SecureLoggerCordovaInterface.prototype.log = function (level, tag, message, timestamp) {
+        if (timestamp === void 0) { timestamp = Date.now(); }
+        this.queueEvent({ level: level, tag: tag, message: message, timestamp: timestamp });
+    };
+    /**
+     * Queues a new log event with the given data and level of VERBOSE
+     */
+    SecureLoggerCordovaInterface.prototype.verbose = function (tag, message, timestamp) {
+        this.log(2 /* SecureLogLevel.VERBOSE */, tag, message, timestamp);
+    };
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    SecureLoggerCordovaInterface.prototype.debug = function (tag, message, timestamp) {
+        this.log(3 /* SecureLogLevel.DEBUG */, tag, message, timestamp);
+    };
+    /**
+     * Queues a new log event with the given data and level of DEBUG
+     */
+    SecureLoggerCordovaInterface.prototype.info = function (tag, message, timestamp) {
+        this.log(4 /* SecureLogLevel.INFO */, tag, message, timestamp);
+    };
+    /**
+     * Queues a new log event with the given data and level of WARN
+     */
+    SecureLoggerCordovaInterface.prototype.warn = function (tag, message, timestamp) {
+        this.log(5 /* SecureLogLevel.WARN */, tag, message, timestamp);
+    };
+    /**
+     * Queues a new log event with the given data and level of ERROR
+     */
+    SecureLoggerCordovaInterface.prototype.error = function (tag, message, timestamp) {
+        this.log(6 /* SecureLogLevel.ERROR */, tag, message, timestamp);
+    };
+    /**
+     * Queues a new log event with the given data and level of FATAL
+     */
+    SecureLoggerCordovaInterface.prototype.fatal = function (tag, message, timestamp) {
+        this.log(7 /* SecureLogLevel.FATAL */, tag, message, timestamp);
+    };
+    /**
+     * Alias of `verbose()`
+     */
+    SecureLoggerCordovaInterface.prototype.trace = function (tag, message, timestamp) {
+        this.verbose(tag, message, timestamp);
     };
     return SecureLoggerCordovaInterface;
 }());
