@@ -100,7 +100,7 @@ async function uploadLogs(): Promise<void> {
     const logCacheData: ArrayBuffer = await SecureLogger.getCacheBlob();
     const bodyBlob = new Blob([logCacheData]);
     // upload / share it somewhere
-    await http.post('/log-capture', bodyBlob)
+    await http.post('/log-capture', bodyBlob);
 }
 ```
 
@@ -139,7 +139,6 @@ function captureRxConsoleEvent(ev: LogEvent): void {
 }
 
 primaryTransport
-    .disableEventCaching()
     .enableDefaultBroadcast()
     .events()
     .addListener(captureRxConsoleEvent);
