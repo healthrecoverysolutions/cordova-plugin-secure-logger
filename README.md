@@ -1,5 +1,7 @@
 # cordova-plugin-secure-logger
 
+**DEPRECATION NOTICE** - this plugin has been [moved](https://www.npmjs.com/package/cordova-plugin-secure-logger) to the official npm registry! Use that instead.
+
 Cordova plugin to capture both webview and native log events and store them securely on disk.
 
 Pairs well with [@obsidize/rx-console](https://www.npmjs.com/package/@obsidize/rx-console)
